@@ -5,10 +5,11 @@ import { spacing, borderRadius } from './spacing';
 import { useModeStore } from '../store/modeStore';
 
 export interface Theme {
-  colors: ColorPalette;
+  colors: typeof socialColors;
   typography: typeof typography;
   spacing: typeof spacing;
   borderRadius: typeof borderRadius;
+  mode: 'social' | 'professional';
 }
 
 const ThemeContext = createContext<Theme>({
@@ -16,6 +17,7 @@ const ThemeContext = createContext<Theme>({
   typography,
   spacing,
   borderRadius,
+  mode: 'social',
 });
 
 interface ThemeProviderProps {
@@ -31,6 +33,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       typography,
       spacing,
       borderRadius,
+      mode,
     }),
     [mode],
   );

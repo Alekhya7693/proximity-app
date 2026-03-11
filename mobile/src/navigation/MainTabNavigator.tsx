@@ -9,96 +9,57 @@ import DiscoverScreen from '../screens/main/DiscoverScreen';
 import MatchesScreen from '../screens/main/MatchesScreen';
 import ChatListScreen from '../screens/main/ChatListScreen';
 import ChatDetailScreen from '../screens/main/ChatDetailScreen';
+import HotZoneMapScreen from '../screens/main/HotZoneMapScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const ChatStack = createNativeStackNavigator<ChatStackParamList>();
 
-// Chat stack with list and detail
 const ChatStackNavigator: React.FC = () => {
-  const theme = useTheme();
-
   return (
-    <ChatStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.background },
-        headerTintColor: theme.colors.primary,
-        headerTitleStyle: { color: theme.colors.text },
-      }}
-    >
+    <ChatStack.Navigator screenOptions={{ headerShown: false }}>
       <ChatStack.Screen
         name="ChatListHome"
         component={ChatListScreen as React.ComponentType<any>}
-        options={{ headerShown: false }}
       />
-      <ChatStack.Screen
-        name="ChatDetail"
-        component={ChatDetailScreen}
-        options={({ route }) => ({
-          title: route.params.recipientName,
-          headerBackTitle: 'Back',
-        })}
-      />
+      <ChatStack.Screen name="ChatDetail" component={ChatDetailScreen} />
     </ChatStack.Navigator>
   );
 };
 
 interface TabIconProps {
-  label: string;
+  emoji: string;
   focused: boolean;
   color: string;
 }
 
-const TabIcon: React.FC<TabIconProps> = ({ label, focused, color }) => {
-  const iconMap: Record<string, string> = {
-    Discover: 'D',
-    Matches: 'M',
-    Chat: 'C',
-    Profile: 'P',
-  };
-
-  return (
-    <View style={styles.tabIconContainer}>
-      <View
-        style={[
-          styles.tabIcon,
-          {
-            backgroundColor: focused ? color + '20' : 'transparent',
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.tabIconText,
-            { color, fontWeight: focused ? '700' : '400' },
-          ]}
-        >
-          {iconMap[label] || label.charAt(0)}
-        </Text>
-      </View>
-    </View>
-  );
-};
+const TabIcon: React.FC<TabIconProps> = ({ emoji, focused, color }) => (
+  <View style={[styles.tabIcon, focused && { backgroundColor: color + '20' }]}>
+    <Text style={styles.tabEmoji}>{emoji}</Text>
+  </View>
+);
 
 const MainTabNavigator: React.FC = () => {
-  const theme = useTheme();
+  const { colors, mode } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.tabBar.active,
-        tabBarInactiveTintColor: theme.colors.tabBar.inactive,
+        tabBarActiveTintColor: colors.tabBar.active,
+        tabBarInactiveTintColor: colors.tabBar.inactive,
         tabBarStyle: {
-          backgroundColor: theme.colors.tabBar.background,
-          borderTopColor: theme.colors.borderLight,
-          paddingTop: 4,
-          height: 60,
+          backgroundColor: colors.tabBar.background,
+          borderTopColor: colors.border,
+          borderTopWidth: 0.5,
+          paddingTop: 6,
+          paddingBottom: 8,
+          height: 65,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '500',
-          marginBottom: 4,
+          fontWeight: '600',
+          marginTop: 2,
         },
       }}
     >
@@ -108,7 +69,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: 'Discover',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon label="Discover" focused={focused} color={color} />
+            <TabIcon emoji={mode === 'social' ? '✨' : '🔍'} focused={focused} color={color} />
           ),
         }}
       />
@@ -118,7 +79,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: 'Matches',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon label="Matches" focused={focused} color={color} />
+            <TabIcon emoji="💜" focused={focused} color={color} />
           ),
         }}
       />
@@ -128,7 +89,17 @@ const MainTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: 'Chat',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon label="Chat" focused={focused} color={color} />
+            <TabIcon emoji="💬" focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="HotZoneMap"
+        component={HotZoneMapScreen}
+        options={{
+          tabBarLabel: 'Map',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon emoji="🗺️" focused={focused} color={color} />
           ),
         }}
       />
@@ -138,7 +109,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: 'Profile',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon label="Profile" focused={focused} color={color} />
+            <TabIcon emoji="👤" focused={focused} color={color} />
           ),
         }}
       />
@@ -147,15 +118,16 @@ const MainTabNavigator: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  tabIconContainer: { alignItems: 'center', justifyContent: 'center' },
   tabIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabIconText: { fontSize: 16 },
+  tabEmoji: {
+    fontSize: 20,
+  },
 });
 
 export default MainTabNavigator;

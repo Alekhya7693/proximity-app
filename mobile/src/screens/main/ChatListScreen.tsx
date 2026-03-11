@@ -1,271 +1,348 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withSpring, Easing } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeContext';
-import { chatApi, ChatPreview } from '../../api/chat';
-import { formatters } from '../../utils/formatters';
-import { enteringAnim } from '../../utils/animations';
-import EmptyState from '../../components/EmptyState';
 import type { MainTabScreenProps } from '../../navigation/types';
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+type Props = MainTabScreenProps<'ChatList'>;
 
-// ── Pulsing Online Dot ─────────────────────────────────────────────────
-const PulsingDot: React.FC = () => {
-  const pulse = useSharedValue(1);
+// ── Mock Data ────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.35, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-  }, [pulse]);
+type FilterTab = 'all' | 'unread' | 'active';
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-    opacity: 1.35 + 0.3 - pulse.value * 0.3, // subtle opacity oscillation
-  }));
-
-  return (
-    <Animated.View style={[styles.onlineDotOuter, animatedStyle]}>
-      <View style={styles.onlineDotInner} />
-    </Animated.View>
-  );
-};
-
-// ── Typing Indicator ───────────────────────────────────────────────────
-const TypingIndicator: React.FC = () => {
-  const dot1 = useSharedValue(0);
-  const dot2 = useSharedValue(0);
-  const dot3 = useSharedValue(0);
-
-  useEffect(() => {
-    const bounce = (delay: number) =>
-      withRepeat(
-        withSequence(
-          withTiming(0, { duration: delay }),
-          withTiming(-3, { duration: 250, easing: Easing.out(Easing.ease) }),
-          withTiming(0, { duration: 250, easing: Easing.in(Easing.ease) }),
-          withTiming(0, { duration: 600 - delay }),
-        ),
-        -1,
-        false,
-      );
-    dot1.value = bounce(0);
-    dot2.value = bounce(150);
-    dot3.value = bounce(300);
-  }, [dot1, dot2, dot3]);
-
-  const s1 = useAnimatedStyle(() => ({ transform: [{ translateY: dot1.value }] }));
-  const s2 = useAnimatedStyle(() => ({ transform: [{ translateY: dot2.value }] }));
-  const s3 = useAnimatedStyle(() => ({ transform: [{ translateY: dot3.value }] }));
-
-  return (
-    <View style={styles.typingRow}>
-      <Text style={styles.typingText}>typing</Text>
-      <Animated.Text style={[styles.typingDot, s1]}>.</Animated.Text>
-      <Animated.Text style={[styles.typingDot, s2]}>.</Animated.Text>
-      <Animated.Text style={[styles.typingDot, s3]}>.</Animated.Text>
-    </View>
-  );
-};
-
-// ── Chat Card ──────────────────────────────────────────────────────────
-interface ChatCardProps {
-  item: ChatPreview;
-  index: number;
-  onPress: (chat: ChatPreview) => void;
+interface ChatItem {
+  id: string;
+  matchId: string;
+  displayName: string;
+  age: number;
+  emoji: string;
+  lastMessage: string;
+  timeAgo: string;
+  unreadCount: number;
+  isOnline: boolean;
+  isExpired: boolean;
+  isActive: boolean;
 }
 
-const ChatCard: React.FC<ChatCardProps> = ({ item, index, onPress }) => {
+const MOCK_CHATS: ChatItem[] = [
+  {
+    id: 'c1',
+    matchId: 'm1',
+    displayName: 'UrbanFox',
+    age: 27,
+    emoji: '\uD83E\uDD8A',
+    lastMessage: 'That coffee shop sounds amazing! Want to check it out?',
+    timeAgo: '2m',
+    unreadCount: 3,
+    isOnline: true,
+    isExpired: false,
+    isActive: true,
+  },
+  {
+    id: 'c2',
+    matchId: 'm3',
+    displayName: 'WildPetal',
+    age: 29,
+    emoji: '\uD83C\uDF3A',
+    lastMessage: 'I love that hiking trail too! We should go sometime.',
+    timeAgo: '15m',
+    unreadCount: 1,
+    isOnline: true,
+    isExpired: false,
+    isActive: true,
+  },
+  {
+    id: 'c3',
+    matchId: 'm6',
+    displayName: 'LunarMist',
+    age: 23,
+    emoji: '\uD83C\uDF19',
+    lastMessage: 'See you at the gallery opening then!',
+    timeAgo: '1h',
+    unreadCount: 0,
+    isOnline: false,
+    isExpired: false,
+    isActive: true,
+  },
+  {
+    id: 'c4',
+    matchId: 'm4',
+    displayName: 'CosmicRay',
+    age: 26,
+    emoji: '\uD83C\uDF0C',
+    lastMessage: 'That was a great conversation yesterday',
+    timeAgo: '3h',
+    unreadCount: 0,
+    isOnline: false,
+    isExpired: false,
+    isActive: true,
+  },
+  {
+    id: 'c5',
+    matchId: 'm5',
+    displayName: 'TidalWave',
+    age: 31,
+    emoji: '\uD83C\uDF0A',
+    lastMessage: 'Chat expired - moved away',
+    timeAgo: '1d',
+    unreadCount: 0,
+    isOnline: false,
+    isExpired: true,
+    isActive: false,
+  },
+  {
+    id: 'c6',
+    matchId: 'm7',
+    displayName: 'EchoBlaze',
+    age: 28,
+    emoji: '\uD83D\uDD25',
+    lastMessage: 'Chat expired - moved away',
+    timeAgo: '2d',
+    unreadCount: 0,
+    isOnline: false,
+    isExpired: true,
+    isActive: false,
+  },
+];
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+const ChatListScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
-  const scale = useSharedValue(1);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
 
-  const animatedCardStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const unreadCount = MOCK_CHATS.filter((c) => c.unreadCount > 0).length;
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.975, { damping: 15, stiffness: 300 });
+  const filteredChats = MOCK_CHATS.filter((chat) => {
+    if (activeFilter === 'unread') return chat.unreadCount > 0;
+    if (activeFilter === 'active') return chat.isActive;
+    return true;
+  });
+
+  // Find the TidalWave chat for the warning banner
+  const expiringChat = MOCK_CHATS.find(
+    (c) => c.displayName === 'TidalWave' && c.isExpired,
+  );
+
+  const handleChatPress = (chat: ChatItem) => {
+    (navigation as any).navigate('ChatDetail', {
+      matchId: chat.matchId,
+      recipientName: chat.displayName,
+      recipientAvatar: chat.emoji,
+      isActive: chat.isActive,
+    });
   };
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-  };
 
-  const hasUnread = item.unreadCount > 0;
+  // ── Filter Tabs ─────────────────────────────────────────────────────────
 
-  return (
-    <Animated.View
-      entering={enteringAnim(FadeInDown.delay(index * 65).duration(400).springify().damping(16))}
+  const renderFilters = () => (
+    <View
+      style={[
+        styles.filterRow,
+        { borderBottomColor: theme.colors.borderLight },
+      ]}
     >
-      <AnimatedTouchable
+      {/* All */}
+      <TouchableOpacity
         style={[
-          styles.chatCard,
+          styles.filterTab,
+          activeFilter === 'all' && {
+            borderBottomColor: theme.colors.primary,
+            borderBottomWidth: 2,
+          },
+        ]}
+        onPress={() => setActiveFilter('all')}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={[
+            styles.filterTabText,
+            {
+              color:
+                activeFilter === 'all'
+                  ? theme.colors.primary
+                  : theme.colors.textTertiary,
+              fontWeight: activeFilter === 'all' ? '700' : '500',
+            },
+          ]}
+        >
+          All
+        </Text>
+      </TouchableOpacity>
+
+      {/* Unread */}
+      <TouchableOpacity
+        style={[
+          styles.filterTab,
+          activeFilter === 'unread' && {
+            borderBottomColor: theme.colors.primary,
+            borderBottomWidth: 2,
+          },
+        ]}
+        onPress={() => setActiveFilter('unread')}
+        activeOpacity={0.7}
+      >
+        <View style={styles.filterTabInner}>
+          <Text
+            style={[
+              styles.filterTabText,
+              {
+                color:
+                  activeFilter === 'unread'
+                    ? theme.colors.primary
+                    : theme.colors.textTertiary,
+                fontWeight: activeFilter === 'unread' ? '700' : '500',
+              },
+            ]}
+          >
+            Unread
+          </Text>
+          {unreadCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Active */}
+      <TouchableOpacity
+        style={[
+          styles.filterTab,
+          activeFilter === 'active' && {
+            borderBottomColor: theme.colors.primary,
+            borderBottomWidth: 2,
+          },
+        ]}
+        onPress={() => setActiveFilter('active')}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={[
+            styles.filterTabText,
+            {
+              color:
+                activeFilter === 'active'
+                  ? theme.colors.primary
+                  : theme.colors.textTertiary,
+              fontWeight: activeFilter === 'active' ? '700' : '500',
+            },
+          ]}
+        >
+          Active
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ── Chat Item ───────────────────────────────────────────────────────────
+
+  const renderChatItem = ({ item }: { item: ChatItem }) => {
+    const isExpired = item.isExpired;
+    const hasUnread = item.unreadCount > 0;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.chatItem,
           {
             backgroundColor: theme.colors.surfaceElevated,
-            shadowColor: theme.colors.cardShadow,
+            opacity: isExpired ? 0.5 : 1,
           },
-          hasUnread && styles.chatCardUnread,
-          animatedCardStyle,
         ]}
-        onPress={() => onPress(item)}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
+        onPress={() => handleChatPress(item)}
+        activeOpacity={0.85}
+        disabled={isExpired}
       >
         {/* Avatar */}
         <View style={styles.avatarContainer}>
           <View
             style={[
-              styles.avatarRing,
-              item.isOnline
-                ? { borderColor: '#00B894' }
-                : { borderColor: 'transparent' },
+              styles.avatar,
+              {
+                backgroundColor: isExpired
+                  ? theme.colors.textTertiary + '15'
+                  : theme.colors.primary + '10',
+              },
             ]}
           >
-            <Image source={{ uri: item.recipientPhoto }} style={styles.avatar} />
+            <Text style={[styles.avatarEmoji, isExpired && styles.expiredEmoji]}>
+              {item.emoji}
+            </Text>
           </View>
-          {item.isOnline && <PulsingDot />}
+          {item.isOnline && !isExpired && (
+            <View style={styles.onlineDot}>
+              <View style={styles.onlineDotInner} />
+            </View>
+          )}
         </View>
 
         {/* Content */}
-        <View style={styles.chatInfo}>
-          <View style={styles.chatHeader}>
+        <View style={styles.chatContent}>
+          <View style={styles.chatTopRow}>
             <Text
               style={[
-                styles.nameText,
-                { color: theme.colors.text },
+                styles.chatName,
+                { color: isExpired ? theme.colors.textTertiary : theme.colors.text },
               ]}
               numberOfLines={1}
             >
-              {item.recipientName}
+              {item.displayName}
             </Text>
             <Text
               style={[
-                styles.timestampText,
+                styles.chatTime,
                 {
-                  color: hasUnread ? '#6C5CE7' : theme.colors.textTertiary,
+                  color: hasUnread
+                    ? theme.colors.primary
+                    : theme.colors.textTertiary,
                   fontWeight: hasUnread ? '600' : '400',
                 },
               ]}
             >
-              {formatters.formatRelativeTime(item.lastMessageAt)}
+              {item.timeAgo}
             </Text>
           </View>
-
-          <View style={styles.chatPreview}>
-            {item.isTyping ? (
-              <TypingIndicator />
-            ) : (
-              <Text
-                style={[
-                  styles.messageText,
-                  {
-                    color: hasUnread
+          <View style={styles.chatBottomRow}>
+            <Text
+              style={[
+                styles.chatMessage,
+                {
+                  color: isExpired
+                    ? theme.colors.textTertiary
+                    : hasUnread
                       ? theme.colors.text
                       : theme.colors.textSecondary,
-                    fontWeight: hasUnread ? '600' : '400',
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.lastMessage}
-              </Text>
-            )}
+                  fontWeight: hasUnread ? '600' : '400',
+                  fontStyle: isExpired ? 'italic' : 'normal',
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {item.lastMessage}
+            </Text>
             {hasUnread && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>
-                  {item.unreadCount > 99 ? '99+' : item.unreadCount}
-                </Text>
+              <View
+                style={[
+                  styles.unreadBadge,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              >
+                <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
               </View>
             )}
           </View>
         </View>
-      </AnimatedTouchable>
-    </Animated.View>
-  );
-};
-
-// ── Separator ──────────────────────────────────────────────────────────
-const Separator: React.FC = () => {
-  const theme = useTheme();
-  return (
-    <View style={styles.separatorWrapper}>
-      <View
-        style={[
-          styles.separator,
-          { backgroundColor: theme.colors.borderLight },
-        ]}
-      />
-    </View>
-  );
-};
-
-// ── Main Screen ────────────────────────────────────────────────────────
-type Props = MainTabScreenProps<'ChatList'>;
-
-const ChatListScreen: React.FC<Props> = ({ navigation }) => {
-  const theme = useTheme();
-
-  const [chats, setChats] = useState<ChatPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const loadChats = useCallback(async () => {
-    try {
-      const result = await chatApi.getChatList();
-      setChats(result);
-    } catch (error) {
-      console.error('Failed to load chats:', error);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadChats();
-  }, [loadChats]);
-
-  // Refresh when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadChats();
-    });
-    return unsubscribe;
-  }, [navigation, loadChats]);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadChats();
+      </TouchableOpacity>
+    );
   };
-
-  const handleChatPress = (chat: ChatPreview) => {
-    (navigation as any).navigate('ChatDetail', {
-      matchId: chat.matchId,
-      recipientName: chat.recipientName,
-      recipientPhoto: chat.recipientPhoto,
-    });
-  };
-
-  const renderChat = ({ item, index }: { item: ChatPreview; index: number }) => (
-    <ChatCard item={item} index={index} onPress={handleChatPress} />
-  );
 
   return (
     <SafeAreaView
@@ -273,57 +350,52 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
       edges={['top']}
     >
       {/* Header */}
-      <Animated.View
-        entering={enteringAnim(FadeIn.duration(500))}
-        style={[styles.headerBar, { borderBottomColor: theme.colors.borderLight }]}
-      >
-        <View style={styles.headerRow}>
-          <Text style={styles.headerEmoji}>{'\uD83D\uDCAC'}</Text>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Messages
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          Chats
+        </Text>
+        <TouchableOpacity
+          style={[styles.composeButton, { backgroundColor: theme.colors.surface }]}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.composeIcon}>{'\u270F\uFE0F'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter Tabs */}
+      {renderFilters()}
+
+      {/* Chat List */}
+      <FlatList
+        data={filteredChats}
+        renderItem={renderChatItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
+
+      {/* Warning Banner */}
+      {expiringChat && (
+        <View
+          style={[
+            styles.warningBanner,
+            { backgroundColor: theme.colors.warning + '15' },
+          ]}
+        >
+          <Text style={[styles.warningText, { color: theme.colors.warning }]}>
+            {'\u26A0\uFE0F'} TidalWave chat expires in 46 hours. Move closer to
+            unlock messaging again
           </Text>
         </View>
-        <Text style={[styles.headerSubtitle, { color: theme.colors.textTertiary }]}>
-          {chats.length > 0
-            ? `${chats.length} conversation${chats.length !== 1 ? 's' : ''}`
-            : 'Your conversations appear here'}
-        </Text>
-      </Animated.View>
-
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
-      ) : chats.length === 0 ? (
-        <EmptyState
-          title="No Messages Yet"
-          message="Match with someone and start a conversation!"
-        />
-      ) : (
-        <FlatList
-          data={chats}
-          renderItem={renderChat}
-          keyExtractor={(item) => item.matchId}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
-              tintColor={theme.colors.primary}
-              colors={['#6C5CE7', '#A29BFE']}
-            />
-          }
-          ItemSeparatorComponent={Separator}
-        />
       )}
     </SafeAreaView>
   );
 };
 
-// ── Styles ─────────────────────────────────────────────────────────────
-const AVATAR_SIZE = 62;
-const AVATAR_RING_SIZE = AVATAR_SIZE + 6;
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const AVATAR_SIZE = 54;
 
 const styles = StyleSheet.create({
   container: {
@@ -331,84 +403,89 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  headerBar: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerRow: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
-  },
-  headerEmoji: {
-    fontSize: 26,
-    marginRight: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginTop: 2,
-    marginLeft: 42, // align with title text after emoji
+  composeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeIcon: {
+    fontSize: 18,
   },
 
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  // Filter Tabs
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  filterTab: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 4,
+  },
+  filterTabInner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+  },
+  filterTabText: {
+    fontSize: 14,
+    letterSpacing: 0.2,
+  },
+  filterBadge: {
+    backgroundColor: '#EF4444',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  filterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
 
   // List
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 24,
-  },
-
-  // Separator
-  separatorWrapper: {
-    paddingLeft: AVATAR_RING_SIZE + 16,
-    paddingVertical: 2,
+    paddingBottom: 80,
   },
   separator: {
-    height: StyleSheet.hairlineWidth,
+    height: 4,
   },
 
-  // Chat card
-  chatCard: {
+  // Chat Item
+  chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    padding: 14,
     borderRadius: 16,
-    marginVertical: 3,
     ...Platform.select({
       ios: {
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 1,
-        shadowRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 2,
-      },
-    }),
-  },
-  chatCardUnread: {
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
+        elevation: 1,
       },
     }),
   },
@@ -416,122 +493,103 @@ const styles = StyleSheet.create({
   // Avatar
   avatarContainer: {
     position: 'relative',
-    marginRight: 14,
-  },
-  avatarRing: {
-    width: AVATAR_RING_SIZE,
-    height: AVATAR_RING_SIZE,
-    borderRadius: AVATAR_RING_SIZE / 2,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: 12,
   },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  onlineDotOuter: {
+  avatarEmoji: {
+    fontSize: 26,
+  },
+  expiredEmoji: {
+    opacity: 0.4,
+  },
+  onlineDot: {
     position: 'absolute',
-    bottom: 1,
-    right: 1,
+    bottom: 0,
+    right: 0,
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(0, 184, 148, 0.3)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   onlineDotInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#00B894',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    backgroundColor: '#10B981',
   },
 
-  // Chat info
-  chatInfo: {
+  // Chat Content
+  chatContent: {
     flex: 1,
   },
-  chatHeader: {
+  chatTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 4,
   },
-  nameText: {
+  chatName: {
     fontSize: 16,
     fontWeight: '700',
     flex: 1,
     marginRight: 8,
     letterSpacing: -0.2,
   },
-  timestampText: {
-    fontSize: 11,
-    letterSpacing: 0.1,
+  chatTime: {
+    fontSize: 12,
   },
-
-  // Preview
-  chatPreview: {
+  chatBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  messageText: {
+  chatMessage: {
     fontSize: 14,
     flex: 1,
+    marginRight: 8,
     lineHeight: 19,
   },
 
-  // Typing indicator
-  typingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  typingText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    color: '#6C5CE7',
-    fontWeight: '500',
-  },
-  typingDot: {
-    fontSize: 18,
-    fontStyle: 'italic',
-    color: '#6C5CE7',
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-
-  // Unread badge
+  // Unread Badge
   unreadBadge: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 7,
-    marginLeft: 10,
-    backgroundColor: '#6C5CE7',
-    // Gradient-like effect via layered shadow
-    ...Platform.select({
-      ios: {
-        shadowColor: '#A29BFE',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.6,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    paddingHorizontal: 6,
   },
   unreadBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.3,
+  },
+
+  // Warning Banner
+  warningBanner: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  warningText: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 19,
+    textAlign: 'center',
   },
 });
 

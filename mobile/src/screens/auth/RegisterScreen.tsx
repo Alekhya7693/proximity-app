@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,48 +9,177 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
+  Dimensions,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  withSequence,
+  withDelay,
+  withSpring,
+  Easing,
+  FadeInUp,
+  FadeInDown,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { validators } from '../../utils/validators';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { showAlert } from '../../utils/alert';
+import { enteringAnim } from '../../utils/animations';
 import type { AuthScreenProps } from '../../navigation/types';
 
 type Props = AuthScreenProps<'Register'>;
 
-const GENDER_OPTIONS = [
-  { label: 'Male', value: 'male' },
-  { label: 'Female', value: 'female' },
-  { label: 'Non-binary', value: 'non_binary' },
-  { label: 'Other', value: 'other' },
-  { label: 'Prefer not to say', value: 'prefer_not_to_say' },
-] as const;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// ── Floating Orb Component ─────────────────────────────────────────────
+interface FloatingOrbProps {
+  size: number;
+  color: string;
+  initialX: number;
+  initialY: number;
+  delay: number;
+  duration: number;
+}
+
+const FloatingOrb: React.FC<FloatingOrbProps> = ({
+  size,
+  color,
+  initialX,
+  initialY,
+  delay,
+  duration,
+}) => {
+  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withDelay(delay, withTiming(1, { duration: 800 }));
+    scale.value = withDelay(
+      delay,
+      withSpring(1, { damping: 12, stiffness: 80 }),
+    );
+
+    translateY.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(-20, {
+            duration,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(20, {
+            duration,
+            easing: Easing.inOut(Easing.sin),
+          }),
+        ),
+        -1,
+        true,
+      ),
+    );
+
+    translateX.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(15, {
+            duration: duration * 1.3,
+            easing: Easing.inOut(Easing.sin),
+          }),
+          withTiming(-15, {
+            duration: duration * 1.3,
+            easing: Easing.inOut(Easing.sin),
+          }),
+        ),
+        -1,
+        true,
+      ),
+    );
+  }, [delay, duration, opacity, scale, translateX, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: initialX,
+          top: initialY,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+};
+
+// ── Main Register Screen ───────────────────────────────────────────────
 const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
   const { setTokens, setUser } = useAuthStore();
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [gender, setGender] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Focus states
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+
+  // Button press scale
+  const buttonScale = useSharedValue(1);
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
+
+  const onButtonPressIn = useCallback(() => {
+    buttonScale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+  }, [buttonScale]);
+
+  const onButtonPressOut = useCallback(() => {
+    buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  }, [buttonScale]);
+
+  // ── Validation ──────────────────────────────────────────────────────
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!validators.isValidName(firstName)) {
-      newErrors.firstName = 'First name must be 2-50 characters';
-    }
-    if (!validators.isValidName(lastName)) {
-      newErrors.lastName = 'Last name must be 2-50 characters';
-    }
     if (!validators.isValidEmail(email)) {
       newErrors.email = 'Please enter a valid email address';
     }
@@ -64,19 +193,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 
-    if (!dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
-    } else {
-      const dob = new Date(dateOfBirth);
-      if (isNaN(dob.getTime())) {
-        newErrors.dateOfBirth = 'Invalid date format (use YYYY-MM-DD)';
-      } else if (!validators.isValidAge(dob)) {
-        newErrors.dateOfBirth = 'You must be at least 18 years old';
-      }
-    }
-
-    if (!gender) {
-      newErrors.gender = 'Please select a gender';
+    if (!agreedToTerms) {
+      newErrors.terms = 'You must agree to the Terms & Conditions';
     }
 
     setErrors(newErrors);
@@ -89,43 +207,85 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
     try {
       const response = await authApi.register({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
         password,
-        dateOfBirth,
-        gender,
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        gender: 'prefer_not_to_say',
       });
 
       await setTokens(response.accessToken, response.refreshToken);
       await setUser(response.user);
 
-      navigation.navigate('VerifyEmail', { email: email.trim().toLowerCase() });
+      navigation.navigate('VerifyEmail', {
+        email: email.trim().toLowerCase(),
+      });
     } catch (error: unknown) {
       const message =
         error instanceof Error
           ? error.message
           : 'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', message);
+      showAlert('Registration Failed', message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const clearError = (field: string) => {
-    if (errors[field]) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-    }
+  const handleSocialAuth = (provider: 'apple' | 'google') => {
+    // TODO: Implement social auth
+    showAlert(
+      'Coming Soon',
+      `${provider === 'apple' ? 'Apple' : 'Google'} sign-in will be available soon.`,
+    );
   };
 
+  // Floating orb data
+  const orbs: FloatingOrbProps[] = [
+    {
+      size: 120,
+      color: 'rgba(139, 92, 246, 0.07)',
+      initialX: -30,
+      initialY: 60,
+      delay: 0,
+      duration: 3200,
+    },
+    {
+      size: 80,
+      color: 'rgba(236, 72, 153, 0.06)',
+      initialX: SCREEN_WIDTH - 60,
+      initialY: 120,
+      delay: 400,
+      duration: 3800,
+    },
+    {
+      size: 60,
+      color: 'rgba(139, 92, 246, 0.05)',
+      initialX: SCREEN_WIDTH * 0.4,
+      initialY: SCREEN_HEIGHT * 0.7,
+      delay: 800,
+      duration: 4000,
+    },
+    {
+      size: 90,
+      color: 'rgba(236, 72, 153, 0.05)',
+      initialX: 20,
+      initialY: SCREEN_HEIGHT * 0.5,
+      delay: 600,
+      duration: 3500,
+    },
+  ];
+
+  // ── Render ──────────────────────────────────────────────────────────
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
+    <SafeAreaView style={styles.container}>
+      {/* Floating background orbs */}
+      <View style={styles.orbContainer} pointerEvents="none">
+        {orbs.map((orb, index) => (
+          <FloatingOrb key={index} {...orb} />
+        ))}
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}
@@ -133,380 +293,525 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Text
-              style={[
-                theme.typography.h3,
-                { color: theme.colors.text },
-              ]}
-            >
-              Create Account
+          {/* ── Header ──────────────────────────────────────────────── */}
+          <Animated.View
+            entering={enteringAnim(FadeInUp.duration(800).delay(100))}
+            style={styles.header}
+          >
+            <Text style={styles.headerTitle}>Create Account</Text>
+            <Text style={styles.headerSubtitle}>
+              Join the network. No phone number needed.
             </Text>
-            <Text
-              style={[
-                theme.typography.body2,
-                { color: theme.colors.textSecondary, marginTop: 4 },
-              ]}
-            >
-              Join the Proximity community
-            </Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.form}>
-            {/* Name Row */}
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, styles.halfInput]}>
-                <Text
-                  style={[
-                    styles.label,
-                    theme.typography.body2,
-                    { color: theme.colors.text },
-                  ]}
-                >
-                  First Name
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: errors.firstName
-                        ? theme.colors.error
-                        : theme.colors.border,
-                      backgroundColor: theme.colors.surface,
-                      color: theme.colors.text,
-                    },
-                  ]}
-                  placeholder="First name"
-                  placeholderTextColor={theme.colors.textTertiary}
-                  value={firstName}
-                  onChangeText={(t) => {
-                    setFirstName(t);
-                    clearError('firstName');
-                  }}
-                  autoCapitalize="words"
-                  editable={!isLoading}
-                />
-                {errors.firstName && (
-                  <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                    {errors.firstName}
-                  </Text>
-                )}
-              </View>
-
-              <View style={[styles.inputGroup, styles.halfInput]}>
-                <Text
-                  style={[
-                    styles.label,
-                    theme.typography.body2,
-                    { color: theme.colors.text },
-                  ]}
-                >
-                  Last Name
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: errors.lastName
-                        ? theme.colors.error
-                        : theme.colors.border,
-                      backgroundColor: theme.colors.surface,
-                      color: theme.colors.text,
-                    },
-                  ]}
-                  placeholder="Last name"
-                  placeholderTextColor={theme.colors.textTertiary}
-                  value={lastName}
-                  onChangeText={(t) => {
-                    setLastName(t);
-                    clearError('lastName');
-                  }}
-                  autoCapitalize="words"
-                  editable={!isLoading}
-                />
-                {errors.lastName && (
-                  <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                    {errors.lastName}
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            {/* Email */}
-            <View style={styles.inputGroup}>
-              <Text
-                style={[styles.label, theme.typography.body2, { color: theme.colors.text }]}
-              >
-                Email
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: errors.email ? theme.colors.error : theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                    color: theme.colors.text,
-                  },
-                ]}
-                placeholder="Enter your email"
-                placeholderTextColor={theme.colors.textTertiary}
-                value={email}
-                onChangeText={(t) => {
-                  setEmail(t);
-                  clearError('email');
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                editable={!isLoading}
-              />
-              {errors.email && (
-                <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                  {errors.email}
-                </Text>
-              )}
-            </View>
-
-            {/* Date of Birth */}
-            <View style={styles.inputGroup}>
-              <Text
-                style={[styles.label, theme.typography.body2, { color: theme.colors.text }]}
-              >
-                Date of Birth
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: errors.dateOfBirth ? theme.colors.error : theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                    color: theme.colors.text,
-                  },
-                ]}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.colors.textTertiary}
-                value={dateOfBirth}
-                onChangeText={(t) => {
-                  setDateOfBirth(t);
-                  clearError('dateOfBirth');
-                }}
-                keyboardType="numbers-and-punctuation"
-                editable={!isLoading}
-              />
-              {errors.dateOfBirth && (
-                <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                  {errors.dateOfBirth}
-                </Text>
-              )}
-            </View>
-
-            {/* Gender */}
-            <View style={styles.inputGroup}>
-              <Text
-                style={[styles.label, theme.typography.body2, { color: theme.colors.text }]}
-              >
-                Gender
-              </Text>
-              <View style={styles.genderRow}>
-                {GENDER_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.genderChip,
-                      {
-                        borderColor:
-                          gender === option.value
-                            ? theme.colors.primary
-                            : theme.colors.border,
-                        backgroundColor:
-                          gender === option.value
-                            ? theme.colors.primaryLight
-                            : theme.colors.surface,
-                      },
-                    ]}
-                    onPress={() => {
-                      setGender(option.value);
-                      clearError('gender');
-                    }}
-                    disabled={isLoading}
-                  >
-                    <Text
-                      style={[
-                        theme.typography.caption,
-                        {
-                          color:
-                            gender === option.value
-                              ? theme.colors.primaryDark
-                              : theme.colors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {errors.gender && (
-                <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                  {errors.gender}
-                </Text>
-              )}
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputGroup}>
-              <Text
-                style={[styles.label, theme.typography.body2, { color: theme.colors.text }]}
-              >
-                Password
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: errors.password ? theme.colors.error : theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                    color: theme.colors.text,
-                  },
-                ]}
-                placeholder="Create a password"
-                placeholderTextColor={theme.colors.textTertiary}
-                value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
-                  clearError('password');
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-              {errors.password && (
-                <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                  {errors.password}
-                </Text>
-              )}
-            </View>
-
-            {/* Confirm Password */}
-            <View style={styles.inputGroup}>
-              <Text
-                style={[styles.label, theme.typography.body2, { color: theme.colors.text }]}
-              >
-                Confirm Password
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    borderColor: errors.confirmPassword
-                      ? theme.colors.error
-                      : theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                    color: theme.colors.text,
-                  },
-                ]}
-                placeholder="Confirm your password"
-                placeholderTextColor={theme.colors.textTertiary}
-                value={confirmPassword}
-                onChangeText={(t) => {
-                  setConfirmPassword(t);
-                  clearError('confirmPassword');
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-              {errors.confirmPassword && (
-                <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                  {errors.confirmPassword}
-                </Text>
-              )}
-            </View>
-
+          {/* ── Social Auth Buttons ─────────────────────────────────── */}
+          <Animated.View
+            entering={enteringAnim(FadeInUp.duration(800).delay(200))}
+          >
             <TouchableOpacity
-              style={[
-                styles.button,
-                { backgroundColor: theme.colors.primary },
-                isLoading && styles.buttonDisabled,
-              ]}
-              onPress={handleRegister}
-              disabled={isLoading}
+              style={styles.socialButton}
+              onPress={() => handleSocialAuth('apple')}
               activeOpacity={0.8}
             >
-              {isLoading ? (
-                <ActivityIndicator color={theme.colors.textInverse} />
-              ) : (
-                <Text
-                  style={[
-                    theme.typography.button,
-                    { color: theme.colors.textInverse },
-                  ]}
-                >
-                  Create Account
-                </Text>
-              )}
+              <Text style={styles.socialButtonIconApple}>{'\uF8FF'}</Text>
+              <Text style={styles.socialButtonText}>Continue with Apple</Text>
             </TouchableOpacity>
-          </View>
 
-          <View style={styles.footer}>
-            <Text
-              style={[theme.typography.body2, { color: theme.colors.textSecondary }]}
+            <TouchableOpacity
+              style={[styles.socialButton, styles.socialButtonSpacing]}
+              onPress={() => handleSocialAuth('google')}
+              activeOpacity={0.8}
             >
+              <Text style={styles.socialButtonIconGoogle}>G</Text>
+              <Text style={styles.socialButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* ── Divider ─────────────────────────────────────────────── */}
+          <Animated.View
+            entering={enteringAnim(FadeInUp.duration(800).delay(300))}
+            style={styles.dividerContainer}
+          >
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </Animated.View>
+
+          {/* ── Form ────────────────────────────────────────────────── */}
+          <Animated.View
+            entering={enteringAnim(FadeInUp.duration(800).delay(400))}
+          >
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  emailFocused && styles.inputWrapperFocused,
+                  errors.email ? styles.inputWrapperError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#6B7280"
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    clearError('email');
+                  }}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  editable={!isLoading}
+                />
+              </View>
+              {errors.email && (
+                <Animated.Text
+                  entering={enteringAnim(FadeInDown.duration(300))}
+                  style={styles.errorText}
+                >
+                  {errors.email}
+                </Animated.Text>
+              )}
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  passwordFocused && styles.inputWrapperFocused,
+                  errors.password ? styles.inputWrapperError : null,
+                ]}
+              >
+                <TextInput
+                  style={[styles.input, styles.passwordField]}
+                  placeholder="Create a password"
+                  placeholderTextColor="#6B7280"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    clearError('password');
+                  }}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={styles.showPasswordBtn}
+                  onPress={() => setShowPassword(!showPassword)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.showPasswordText}>
+                    {showPassword ? 'Hide' : 'Show'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {errors.password && (
+                <Animated.Text
+                  entering={enteringAnim(FadeInDown.duration(300))}
+                  style={styles.errorText}
+                >
+                  {errors.password}
+                </Animated.Text>
+              )}
+            </View>
+
+            {/* Confirm Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  confirmPasswordFocused && styles.inputWrapperFocused,
+                  errors.confirmPassword ? styles.inputWrapperError : null,
+                ]}
+              >
+                <TextInput
+                  style={[styles.input, styles.passwordField]}
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#6B7280"
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    clearError('confirmPassword');
+                  }}
+                  onFocus={() => setConfirmPasswordFocused(true)}
+                  onBlur={() => setConfirmPasswordFocused(false)}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+                <TouchableOpacity
+                  style={styles.showPasswordBtn}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.showPasswordText}>
+                    {showConfirmPassword ? 'Hide' : 'Show'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {errors.confirmPassword && (
+                <Animated.Text
+                  entering={enteringAnim(FadeInDown.duration(300))}
+                  style={styles.errorText}
+                >
+                  {errors.confirmPassword}
+                </Animated.Text>
+              )}
+            </View>
+
+            {/* Terms Checkbox */}
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() => {
+                setAgreedToTerms(!agreedToTerms);
+                clearError('terms');
+              }}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  agreedToTerms && styles.checkboxChecked,
+                  errors.terms ? styles.checkboxError : null,
+                ]}
+              >
+                {agreedToTerms && (
+                  <Text style={styles.checkmark}>{'✓'}</Text>
+                )}
+              </View>
+              <Text style={styles.checkboxText}>
+                I agree to the{' '}
+                <Text
+                  style={styles.linkText}
+                  onPress={() => Linking.openURL('https://proximity.app/terms')}
+                >
+                  Terms & Conditions
+                </Text>
+                {' '}and{' '}
+                <Text
+                  style={styles.linkText}
+                  onPress={() =>
+                    Linking.openURL('https://proximity.app/privacy')
+                  }
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+            {errors.terms && (
+              <Animated.Text
+                entering={enteringAnim(FadeInDown.duration(300))}
+                style={[styles.errorText, { marginTop: 4, marginBottom: 8 }]}
+              >
+                {errors.terms}
+              </Animated.Text>
+            )}
+
+            {/* Create Account Button */}
+            <Animated.View style={[buttonAnimatedStyle, { marginTop: 8 }]}>
+              <TouchableOpacity
+                onPress={handleRegister}
+                onPressIn={onButtonPressIn}
+                onPressOut={onButtonPressOut}
+                disabled={isLoading}
+                activeOpacity={1}
+                style={[
+                  styles.gradientButtonTouchable,
+                  isLoading && styles.buttonDisabled,
+                ]}
+              >
+                <LinearGradient
+                  colors={['#8B5CF6', '#EC4899']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.gradientButton}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.gradientButtonText}>
+                      Create Account
+                    </Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+          </Animated.View>
+
+          {/* ── Footer ──────────────────────────────────────────────── */}
+          <Animated.View
+            entering={enteringAnim(FadeInUp.duration(800).delay(500))}
+            style={styles.footer}
+          >
+            <Text style={styles.footerText}>
               Already have an account?{' '}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text
-                style={[theme.typography.subtitle2, { color: theme.colors.primary }]}
-              >
-                Sign In
-              </Text>
+              <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
+// ── Styles ──────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  flex: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 },
-  header: { marginBottom: 32 },
-  form: { marginBottom: 24 },
-  row: { flexDirection: 'row', gap: 12 },
-  halfInput: { flex: 1 },
-  inputGroup: { marginBottom: 16 },
-  label: { marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  container: {
+    flex: 1,
+    backgroundColor: '#0F0A1A',
+  },
+  flex: {
+    flex: 1,
+  },
+  orbContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+
+  // ── Header ──────────────────────────────────────────────────────
+  header: {
+    marginBottom: 28,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  headerSubtitle: {
     fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 24,
   },
-  genderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  genderChip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  errorText: { fontSize: 12, marginTop: 4 },
-  button: {
-    borderRadius: 12,
-    paddingVertical: 16,
+
+  // ── Social Auth Buttons ─────────────────────────────────────────
+  socialButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    marginTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
   },
-  buttonDisabled: { opacity: 0.7 },
+  socialButtonSpacing: {
+    marginTop: 12,
+  },
+  socialButtonIconApple: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000000',
+    marginRight: 10,
+  },
+  socialButtonIconGoogle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#4285F4',
+    marginRight: 10,
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+
+  // ── Divider ─────────────────────────────────────────────────────
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#2D2340',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+
+  // ── Inputs ──────────────────────────────────────────────────────
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    color: '#6B7280',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1128',
+    borderWidth: 1.5,
+    borderColor: '#2D2340',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    minHeight: 54,
+  },
+  inputWrapperFocused: {
+    borderColor: '#8B5CF6',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#8B5CF6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+      web: {
+        boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.1)',
+      } as any,
+    }),
+  },
+  inputWrapperError: {
+    borderColor: '#EF4444',
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    paddingVertical: Platform.OS === 'web' ? 16 : 14,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
+  },
+  passwordField: {
+    paddingRight: 50,
+  },
+  showPasswordBtn: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  showPasswordText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+
+  // ── Checkbox ────────────────────────────────────────────────────
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#2D2340',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  checkboxError: {
+    borderColor: '#EF4444',
+  },
+  checkmark: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: -1,
+  },
+  checkboxText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#9CA3AF',
+    lineHeight: 20,
+  },
+  linkText: {
+    color: '#8B5CF6',
+    fontWeight: '600',
+  },
+
+  // ── Gradient Button ─────────────────────────────────────────────
+  gradientButtonTouchable: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#8B5CF6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+      },
+      android: { elevation: 6 },
+      web: {
+        boxShadow: '0 6px 24px rgba(139, 92, 246, 0.4)',
+      } as any,
+    }),
+  },
+  gradientButton: {
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+  },
+  gradientButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+
+  // ── Footer ──────────────────────────────────────────────────────
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 28,
+    paddingBottom: 16,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  footerLink: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
 });
 

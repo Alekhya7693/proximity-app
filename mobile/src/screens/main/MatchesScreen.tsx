@@ -1,260 +1,248 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  FlatList,
-  TouchableOpacity,
-  Image,
   StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
+  FlatList,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
-import { useModeStore } from '../../store/modeStore';
-import { matchesApi, Match } from '../../api/matches';
-import { formatters } from '../../utils/formatters';
-import { enteringAnim } from '../../utils/animations';
-import CompatibilityBadge from '../../components/CompatibilityBadge';
-import ModeToggle from '../../components/ModeToggle';
-import EmptyState from '../../components/EmptyState';
 import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'Matches'>;
 
-const AVATAR_SIZE = 64;
-const STORY_AVATAR_SIZE = 60;
-const STORY_RING_SIZE = 68;
-const PRIMARY = '#6C5CE7';
-const PRIMARY_LIGHT = '#A29BFE';
-const SECONDARY = '#FD79A8';
+// ── Mock Data ────────────────────────────────────────────────────────────────
 
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+interface WaitingMatch {
+  id: string;
+  displayName: string;
+  emoji: string;
+  timeAgo: string;
+  hasNotification: boolean;
+}
 
-const PulsingDot: React.FC<{ color: string }> = ({ color }) => (
-  <Animated.View
-    style={[
-      styles.onlineDotOuter,
-      { borderColor: '#FFFFFF' },
-    ]}
-  >
-    <View style={[styles.onlineDotInner, { backgroundColor: color }]} />
-  </Animated.View>
-);
+interface MatchItem {
+  id: string;
+  displayName: string;
+  age: number;
+  emoji: string;
+  compatibility: number;
+  timeAgo: string;
+  isChatting: boolean;
+}
+
+const WAITING_MATCHES: WaitingMatch[] = [
+  { id: 'w1', displayName: 'UrbanFox', emoji: '\uD83E\uDD8A', timeAgo: 'Just matched', hasNotification: true },
+  { id: 'w2', displayName: 'NeonDrift', emoji: '\uD83C\uDF1F', timeAgo: '15m ago', hasNotification: true },
+  { id: 'w3', displayName: 'WildPetal', emoji: '\uD83C\uDF3A', timeAgo: '1h ago', hasNotification: false },
+  { id: 'w4', displayName: 'CosmicRay', emoji: '\uD83C\uDF0C', timeAgo: '2h ago', hasNotification: false },
+  { id: 'w5', displayName: 'TidalWave', emoji: '\uD83C\uDF0A', timeAgo: '3h ago', hasNotification: true },
+];
+
+const ALL_MATCHES: MatchItem[] = [
+  { id: 'm1', displayName: 'UrbanFox', age: 27, emoji: '\uD83E\uDD8A', compatibility: 94, timeAgo: '2m ago', isChatting: true },
+  { id: 'm2', displayName: 'NeonDrift', age: 24, emoji: '\uD83C\uDF1F', compatibility: 87, timeAgo: '15m ago', isChatting: false },
+  { id: 'm3', displayName: 'WildPetal', age: 29, emoji: '\uD83C\uDF3A', compatibility: 91, timeAgo: '1h ago', isChatting: true },
+  { id: 'm4', displayName: 'CosmicRay', age: 26, emoji: '\uD83C\uDF0C', compatibility: 83, timeAgo: '2h ago', isChatting: false },
+  { id: 'm5', displayName: 'TidalWave', age: 31, emoji: '\uD83C\uDF0A', compatibility: 79, timeAgo: '4h ago', isChatting: false },
+  { id: 'm6', displayName: 'LunarMist', age: 23, emoji: '\uD83C\uDF19', compatibility: 88, timeAgo: '6h ago', isChatting: true },
+  { id: 'm7', displayName: 'EchoBlaze', age: 28, emoji: '\uD83D\uDD25', compatibility: 76, timeAgo: '1d ago', isChatting: false },
+];
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 const MatchesScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
-  const { mode } = useModeStore();
 
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-
-  const loadMatches = useCallback(
-    async (pageNum: number = 1, refresh: boolean = false) => {
-      try {
-        const result = await matchesApi.getMatches(mode, pageNum);
-        if (refresh || pageNum === 1) {
-          setMatches(result.matches);
-        } else {
-          setMatches((prev) => [...prev, ...result.matches]);
-        }
-        setHasMore(result.hasMore);
-      } catch (error) {
-        console.error('Failed to load matches:', error);
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
-    },
-    [mode],
-  );
-
-  useEffect(() => {
-    setIsLoading(true);
-    setPage(1);
-    loadMatches(1, true);
-  }, [mode, loadMatches]);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setPage(1);
-    loadMatches(1, true);
+  const handleMatchPress = (match: MatchItem) => {
+    if (match.isChatting) {
+      (navigation as any).navigate('ChatList', {
+        screen: 'ChatDetail',
+        params: {
+          matchId: match.id,
+          recipientName: match.displayName,
+          recipientAvatar: match.emoji,
+          isActive: true,
+        },
+      });
+    } else {
+      navigation.navigate('MatchPrompt', {
+        matchId: match.id,
+        userName: match.displayName,
+        userAvatar: match.emoji,
+        distance: 80,
+        compatibility: match.compatibility,
+      });
+    }
   };
 
-  const handleLoadMore = () => {
-    if (!hasMore || isLoading) return;
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadMatches(nextPage);
+  const handleWaitingPress = (waiting: WaitingMatch) => {
+    navigation.navigate('MatchPrompt', {
+      matchId: waiting.id,
+      userName: waiting.displayName,
+      userAvatar: waiting.emoji,
+      distance: 120,
+      compatibility: 85,
+    });
   };
 
-  const handleMatchPress = (match: Match) => {
-    navigation.navigate('ChatList');
-  };
+  // ── Waiting Avatar Item ─────────────────────────────────────────────────
 
-  // Derive new matches (first 3 without last messages or most recent)
-  const newMatches = matches.slice(0, 3);
-
-  const renderNewMatchItem = ({ item }: { item: Match }) => (
+  const renderWaitingItem = ({ item }: { item: WaitingMatch }) => (
     <TouchableOpacity
-      style={styles.storyItem}
-      onPress={() => handleMatchPress(item)}
+      style={styles.waitingItem}
+      onPress={() => handleWaitingPress(item)}
       activeOpacity={0.7}
     >
-      <View style={[styles.storyRing, { borderColor: PRIMARY }]}>
-        <Image
-          source={{ uri: item.profilePhoto }}
-          style={styles.storyAvatar}
-          defaultSource={require('../../../assets/icon.png')}
-        />
-        {item.isOnline && (
-          <View style={styles.storyOnlineDot}>
-            <View style={[styles.storyOnlineDotInner, { backgroundColor: theme.colors.success }]} />
-          </View>
+      <View style={styles.waitingAvatarContainer}>
+        <View
+          style={[
+            styles.waitingAvatar,
+            {
+              backgroundColor: theme.colors.primary + '15',
+              borderColor: theme.colors.primary + '40',
+            },
+          ]}
+        >
+          <Text style={styles.waitingEmoji}>{item.emoji}</Text>
+        </View>
+        {item.hasNotification && (
+          <View style={styles.notificationDot} />
         )}
       </View>
       <Text
-        style={[
-          styles.storyName,
-          { color: theme.colors.text },
-        ]}
+        style={[styles.waitingName, { color: theme.colors.text }]}
         numberOfLines={1}
       >
         {item.displayName}
       </Text>
+      <Text
+        style={[styles.waitingTime, { color: theme.colors.textTertiary }]}
+        numberOfLines={1}
+      >
+        {item.timeAgo}
+      </Text>
     </TouchableOpacity>
   );
 
-  const renderMatch = ({ item, index }: { item: Match; index: number }) => {
-    const hasUnread = item.lastMessage && !item.lastMessage.isRead;
+  // ── Match Row Item ──────────────────────────────────────────────────────
 
-    return (
-      <AnimatedTouchable
-        entering={enteringAnim(FadeInDown.delay(index * 80).duration(400).springify())}
+  const renderMatchItem = ({ item }: { item: MatchItem }) => (
+    <TouchableOpacity
+      style={[
+        styles.matchRow,
+        { backgroundColor: theme.colors.surfaceElevated },
+      ]}
+      onPress={() => handleMatchPress(item)}
+      activeOpacity={0.85}
+    >
+      {/* Avatar */}
+      <View
         style={[
-          styles.matchCard,
-          {
-            backgroundColor: theme.colors.surfaceElevated,
-            shadowColor: theme.colors.cardShadow,
-          },
+          styles.matchAvatar,
+          { backgroundColor: theme.colors.primary + '10' },
         ]}
-        onPress={() => handleMatchPress(item)}
-        activeOpacity={0.85}
       >
-        <View style={styles.matchLeft}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: item.profilePhoto }}
-              style={styles.avatar}
-              defaultSource={require('../../../assets/icon.png')}
-            />
-            {item.isOnline && <PulsingDot color={theme.colors.success} />}
-          </View>
-          <View style={styles.matchInfo}>
-            <View style={styles.nameRow}>
-              <Text
-                style={[
-                  styles.displayName,
-                  { color: theme.colors.text },
-                ]}
-                numberOfLines={1}
-              >
-                {item.displayName}
-              </Text>
-              {hasUnread && (
-                <View style={[styles.unreadBadge, { backgroundColor: PRIMARY }]}>
-                  <Text style={styles.unreadBadgeText}>NEW</Text>
-                </View>
-              )}
-            </View>
-            {item.lastMessage ? (
-              <Text
-                style={[
-                  styles.lastMessage,
-                  {
-                    color: hasUnread
-                      ? theme.colors.text
-                      : theme.colors.textSecondary,
-                    fontWeight: hasUnread ? '600' : '400',
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.lastMessage.text}
-              </Text>
-            ) : (
-              <Text
-                style={[
-                  styles.sayHello,
-                  { color: PRIMARY },
-                ]}
-              >
-                Say hello! {'\uD83D\uDC4B'}
-              </Text>
-            )}
-          </View>
-        </View>
-        <View style={styles.matchRight}>
-          <CompatibilityBadge score={item.compatibilityScore} />
-          {item.lastMessage && (
+        <Text style={styles.matchEmoji}>{item.emoji}</Text>
+      </View>
+
+      {/* Info */}
+      <View style={styles.matchInfo}>
+        <View style={styles.matchNameRow}>
+          <Text style={[styles.matchName, { color: theme.colors.text }]}>
+            {item.displayName}, {item.age}
+          </Text>
+          <View
+            style={[
+              styles.matchPercent,
+              { backgroundColor: theme.colors.primary + '15' },
+            ]}
+          >
             <Text
               style={[
-                styles.timeStamp,
-                { color: theme.colors.textTertiary },
+                styles.matchPercentText,
+                { color: theme.colors.primary },
               ]}
             >
-              {formatters.formatRelativeTime(item.lastMessage.sentAt)}
+              {item.compatibility}%
             </Text>
-          )}
+          </View>
         </View>
-      </AnimatedTouchable>
-    );
-  };
+        <Text
+          style={[styles.matchTimeAgo, { color: theme.colors.textTertiary }]}
+        >
+          {item.timeAgo}
+        </Text>
+      </View>
 
-  const renderSeparator = () => (
-    <View style={[styles.separator, { backgroundColor: theme.colors.borderLight }]} />
+      {/* Action Button */}
+      {item.isChatting ? (
+        <LinearGradient
+          colors={[theme.colors.gradient.start, theme.colors.gradient.end]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.chatButton}
+        >
+          <Text style={styles.chatButtonText}>Chat</Text>
+        </LinearGradient>
+      ) : (
+        <View
+          style={[
+            styles.sayHiOutlineButton,
+            { borderColor: theme.colors.primary },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sayHiOutlineText,
+              { color: theme.colors.primary },
+            ]}
+          >
+            Say Hi
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 
-  const renderListHeader = () => {
-    if (newMatches.length === 0) return null;
+  const renderListHeader = () => (
+    <View>
+      {/* Waiting to Say Hi Section */}
+      <View style={styles.sectionHeader}>
+        <Text
+          style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
+        >
+          WAITING TO SAY HI
+        </Text>
+      </View>
 
-    return (
-      <Animated.View
-        entering={enteringAnim(FadeInDown.duration(500))}
-        style={styles.newMatchesSection}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.waitingScroll}
+        style={styles.waitingContainer}
       >
+        {WAITING_MATCHES.map((item) => (
+          <View key={item.id}>
+            {renderWaitingItem({ item })}
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* All Matches Label */}
+      <View style={[styles.sectionHeader, { marginTop: 8 }]}>
         <Text
-          style={[
-            styles.sectionTitle,
-            { color: theme.colors.text },
-          ]}
+          style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
         >
-          New Matches
+          ALL MATCHES
         </Text>
-        <FlatList
-          data={newMatches}
-          renderItem={renderNewMatchItem}
-          keyExtractor={(item) => `new-${item.id}`}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.storiesContainer}
-        />
-        <View style={[styles.sectionDivider, { backgroundColor: theme.colors.borderLight }]} />
-        <Text
-          style={[
-            styles.sectionTitle,
-            { color: theme.colors.text, marginTop: 16 },
-          ]}
-        >
-          Messages
-        </Text>
-      </Animated.View>
-    );
-  };
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView
@@ -262,258 +250,221 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
       edges={['top']}
     >
       {/* Header */}
-      <View style={styles.headerBar}>
-        <ModeToggle />
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Matches
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          Matches
+        </Text>
+        <View
+          style={[
+            styles.totalBadge,
+            { backgroundColor: theme.colors.primary + '15' },
+          ]}
+        >
+          <Text
+            style={[styles.totalBadgeText, { color: theme.colors.primary }]}
+          >
+            {ALL_MATCHES.length} total
           </Text>
-          <Text style={styles.headerEmoji}>{'\uD83D\uDC9C'}</Text>
         </View>
-        <View style={{ width: 60 }} />
       </View>
 
-      {isLoading && matches.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-        </View>
-      ) : matches.length === 0 ? (
-        <EmptyState
-          title="No Matches Yet"
-          message="Keep swiping to find your matches! Compatible people near you will appear here."
-        />
-      ) : (
-        <FlatList
-          data={matches}
-          renderItem={renderMatch}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={renderListHeader}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
-              tintColor={PRIMARY}
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ItemSeparatorComponent={renderSeparator}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      {/* Match List */}
+      <FlatList
+        data={ALL_MATCHES}
+        renderItem={renderMatchItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={renderListHeader}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
     </SafeAreaView>
   );
 };
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const WAITING_AVATAR_SIZE = 64;
+const MATCH_AVATAR_SIZE = 52;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
 
-  // ── Header ──────────────────────────────────────────
-  headerBar: {
+  // Header
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 10,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  totalBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  totalBadgeText: {
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  headerEmoji: {
-    fontSize: 20,
   },
 
-  // ── Loading ─────────────────────────────────────────
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // ── New Matches (Stories) ───────────────────────────
-  newMatchesSection: {
+  // Section Labels
+  sectionHeader: {
+    paddingHorizontal: 20,
     paddingTop: 8,
+    paddingBottom: 10,
   },
-  sectionTitle: {
-    fontSize: 15,
+  sectionLabel: {
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    paddingHorizontal: 4,
-    marginBottom: 12,
-    opacity: 0.5,
   },
-  storiesContainer: {
-    paddingRight: 8,
+
+  // Waiting Section
+  waitingContainer: {
+    maxHeight: 120,
+  },
+  waitingScroll: {
+    paddingHorizontal: 20,
     gap: 16,
   },
-  storyItem: {
+  waitingItem: {
     alignItems: 'center',
     width: 72,
   },
-  storyRing: {
-    width: STORY_RING_SIZE,
-    height: STORY_RING_SIZE,
-    borderRadius: STORY_RING_SIZE / 2,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+  waitingAvatarContainer: {
     position: 'relative',
+    marginBottom: 6,
   },
-  storyAvatar: {
-    width: STORY_AVATAR_SIZE,
-    height: STORY_AVATAR_SIZE,
-    borderRadius: STORY_AVATAR_SIZE / 2,
-  },
-  storyOnlineDot: {
-    position: 'absolute',
-    bottom: 1,
-    right: 1,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+  waitingAvatar: {
+    width: WAITING_AVATAR_SIZE,
+    height: WAITING_AVATAR_SIZE,
+    borderRadius: WAITING_AVATAR_SIZE / 2,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  storyOnlineDotInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  waitingEmoji: {
+    fontSize: 28,
   },
-  storyName: {
+  notificationDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  waitingName: {
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 6,
     textAlign: 'center',
   },
-  sectionDivider: {
-    height: 1,
-    marginTop: 16,
-    marginHorizontal: 4,
+  waitingTime: {
+    fontSize: 10,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 2,
   },
 
-  // ── List ────────────────────────────────────────────
+  // List
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
+  separator: {
+    height: 8,
+  },
 
-  // ── Match Card ──────────────────────────────────────
-  matchCard: {
+  // Match Row
+  matchRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    padding: 14,
     borderRadius: 16,
-    marginVertical: 4,
-    // Shadow (iOS)
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    // Shadow (Android)
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  matchLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  // ── Avatar ──────────────────────────────────────────
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 14,
-  },
-  avatar: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-  },
-  onlineDotOuter: {
-    position: 'absolute',
-    bottom: 1,
-    right: 1,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2.5,
-    backgroundColor: '#FFFFFF',
+  matchAvatar: {
+    width: MATCH_AVATAR_SIZE,
+    height: MATCH_AVATAR_SIZE,
+    borderRadius: MATCH_AVATAR_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
-  onlineDotInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  matchEmoji: {
+    fontSize: 24,
   },
-
-  // ── Match Info ──────────────────────────────────────
   matchInfo: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
   },
-  nameRow: {
+  matchNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 3,
+    marginBottom: 2,
   },
-  displayName: {
+  matchName: {
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  lastMessage: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  sayHello: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    fontWeight: '500',
-  },
-
-  // ── Unread Badge ────────────────────────────────────
-  unreadBadge: {
-    paddingHorizontal: 7,
+  matchPercent: {
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 6,
   },
-  unreadBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-
-  // ── Match Right ─────────────────────────────────────
-  matchRight: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  timeStamp: {
+  matchPercentText: {
     fontSize: 11,
+    fontWeight: '700',
+  },
+  matchTimeAgo: {
+    fontSize: 12,
     fontWeight: '500',
   },
 
-  // ── Separator ───────────────────────────────────────
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: 92,
+  // Action Buttons
+  chatButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  chatButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sayHiOutlineButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  sayHiOutlineText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 

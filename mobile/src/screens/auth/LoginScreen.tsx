@@ -25,6 +25,7 @@ import Animated, {
   FadeInDown,
   interpolate,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { validators } from '../../utils/validators';
 import { authApi } from '../../api/auth';
@@ -61,14 +62,12 @@ const FloatingOrb: React.FC<FloatingOrbProps> = ({
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    // Fade in
     opacity.value = withDelay(delay, withTiming(1, { duration: 800 }));
     scale.value = withDelay(
       delay,
       withSpring(1, { damping: 12, stiffness: 80 }),
     );
 
-    // Float vertically
     translateY.value = withDelay(
       delay,
       withRepeat(
@@ -87,7 +86,6 @@ const FloatingOrb: React.FC<FloatingOrbProps> = ({
       ),
     );
 
-    // Float horizontally
     translateX.value = withDelay(
       delay,
       withRepeat(
@@ -149,24 +147,23 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
-  // Header glow animation
-  const glowPulse = useSharedValue(0);
+  // Icon glow animation
+  const iconGlow = useSharedValue(0);
 
   useEffect(() => {
-    glowPulse.value = withRepeat(
+    iconGlow.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
       ),
       -1,
       true,
     );
-  }, [glowPulse]);
+  }, [iconGlow]);
 
-  const glowStyle = useAnimatedStyle(() => ({
-    textShadowRadius: interpolate(glowPulse.value, [0, 1], [4, 20]),
-    textShadowColor: 'rgba(108, 92, 231, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
+  const iconGlowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: interpolate(iconGlow.value, [0, 1], [0.2, 0.6]),
+    shadowRadius: interpolate(iconGlow.value, [0, 1], [8, 20]),
   }));
 
   // Button press scale
@@ -184,7 +181,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
   }, [buttonScale]);
 
-  // ── Validation (unchanged logic) ─────────────────────────────────────
+  // ── Validation ──────────────────────────────────────────────────────
   const validate = (): boolean => {
     const newErrors: typeof errors = {};
 
@@ -222,11 +219,19 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // ── Floating orb data ────────────────────────────────────────────────
+  const handleSocialAuth = (provider: 'apple' | 'google') => {
+    // TODO: Implement social auth
+    showAlert(
+      'Coming Soon',
+      `${provider === 'apple' ? 'Apple' : 'Google'} sign-in will be available soon.`,
+    );
+  };
+
+  // Floating orb data
   const orbs: FloatingOrbProps[] = [
     {
       size: 120,
-      color: 'rgba(108, 92, 231, 0.08)',
+      color: 'rgba(139, 92, 246, 0.08)',
       initialX: -30,
       initialY: 40,
       delay: 0,
@@ -234,7 +239,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 80,
-      color: 'rgba(253, 121, 168, 0.08)',
+      color: 'rgba(236, 72, 153, 0.07)',
       initialX: SCREEN_WIDTH - 60,
       initialY: 100,
       delay: 400,
@@ -242,7 +247,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 60,
-      color: 'rgba(0, 206, 201, 0.08)',
+      color: 'rgba(139, 92, 246, 0.06)',
       initialX: SCREEN_WIDTH * 0.3,
       initialY: SCREEN_HEIGHT * 0.15,
       delay: 800,
@@ -250,7 +255,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 100,
-      color: 'rgba(162, 155, 254, 0.07)',
+      color: 'rgba(236, 72, 153, 0.06)',
       initialX: SCREEN_WIDTH * 0.6,
       initialY: SCREEN_HEIGHT * 0.55,
       delay: 200,
@@ -258,27 +263,17 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 50,
-      color: 'rgba(253, 121, 168, 0.06)',
+      color: 'rgba(139, 92, 246, 0.05)',
       initialX: 20,
       initialY: SCREEN_HEIGHT * 0.65,
       delay: 600,
       duration: 3800,
     },
-    {
-      size: 40,
-      color: 'rgba(0, 206, 201, 0.06)',
-      initialX: SCREEN_WIDTH * 0.7,
-      initialY: SCREEN_HEIGHT * 0.35,
-      delay: 1000,
-      duration: 4200,
-    },
   ];
 
-  // ── Render ───────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
+    <SafeAreaView style={styles.container}>
       {/* Floating background orbs */}
       <View style={styles.orbContainer} pointerEvents="none">
         {orbs.map((orb, index) => (
@@ -295,116 +290,66 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Header ──────────────────────────────────────────────── */}
+          {/* ── Logo + Header ──────────────────────────────────────── */}
           <Animated.View
             entering={enteringAnim(FadeInUp.duration(800).delay(100))}
             style={styles.header}
           >
-            {/* Gradient-like header background */}
-            <View style={styles.headerGradient}>
-              <View
-                style={[
-                  styles.gradientLayer1,
-                  { backgroundColor: theme.colors.primary },
-                ]}
-              />
-              <View
-                style={[
-                  styles.gradientLayer2,
-                  { backgroundColor: theme.colors.primaryLight },
-                ]}
-              />
-              <View
-                style={[
-                  styles.gradientLayer3,
-                  { backgroundColor: theme.colors.secondary },
-                ]}
-              />
-            </View>
-
-            {/* App logo / icon area */}
-            <View
+            {/* Small Proximity Logo (gradient icon) */}
+            <Animated.View
               style={[
-                styles.logoCircle,
-                { backgroundColor: theme.colors.primary },
+                styles.logoWrapper,
+                iconGlowStyle,
+                Platform.select({
+                  ios: {
+                    shadowColor: '#8B5CF6',
+                    shadowOffset: { width: 0, height: 0 },
+                  },
+                  android: { elevation: 8 },
+                  web: {
+                    boxShadow: '0 0 16px rgba(139, 92, 246, 0.4)',
+                  } as any,
+                }),
               ]}
             >
-              <Text style={styles.logoEmoji}>V</Text>
-            </View>
+              <LinearGradient
+                colors={['#8B5CF6', '#EC4899']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.logoBorder}
+              >
+                <View style={styles.logoInner}>
+                  <View style={styles.logoTargetOuter}>
+                    <View style={styles.logoTargetMiddle}>
+                      <View style={styles.logoTargetCenter} />
+                    </View>
+                  </View>
+                </View>
+              </LinearGradient>
+            </Animated.View>
 
-            {/* App name with glow */}
-            <Animated.Text
-              style={[
-                styles.appName,
-                { color: theme.colors.primary },
-                glowStyle,
-              ]}
-            >
-              Vibeit
-            </Animated.Text>
-
-            {/* Tagline */}
-            <Text
-              style={[
-                styles.tagline,
-                theme.typography.body1,
-                { color: theme.colors.textSecondary },
-              ]}
-            >
-              Connect with people around you
-            </Text>
+            <Text style={styles.headerTitle}>Welcome back</Text>
+            <Text style={styles.headerSubtitle}>Sign in to continue</Text>
           </Animated.View>
 
-          {/* ── Form Card ───────────────────────────────────────────── */}
+          {/* ── Form ────────────────────────────────────────────────── */}
           <Animated.View
             entering={enteringAnim(FadeInUp.duration(800).delay(300))}
-            style={[
-              styles.formCard,
-              {
-                backgroundColor: theme.colors.surfaceElevated,
-                shadowColor: theme.colors.cardShadow,
-              },
-            ]}
           >
             {/* Email Input */}
             <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
               <View
                 style={[
                   styles.inputWrapper,
-                  {
-                    borderColor: errors.email
-                      ? theme.colors.error
-                      : emailFocused
-                        ? theme.colors.primary
-                        : theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                  },
-                  emailFocused && {
-                    borderWidth: 2,
-                    ...Platform.select({
-                      ios: {
-                        shadowColor: theme.colors.primary,
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 8,
-                      },
-                      android: { elevation: 2 },
-                      web: {
-                        // web-only boxShadow property
-                        boxShadow: `0 0 0 3px rgba(108, 92, 231, 0.1)`,
-                      },
-                    }),
-                  },
+                  emailFocused && styles.inputWrapperFocused,
+                  errors.email ? styles.inputWrapperError : null,
                 ]}
               >
-                <Text style={styles.inputIcon}>{'📧'}</Text>
                 <TextInput
-                  style={[
-                    styles.modernInput,
-                    { color: theme.colors.text },
-                  ]}
-                  placeholder="Email address"
-                  placeholderTextColor={theme.colors.textTertiary}
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#6B7280"
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -422,11 +367,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               {errors.email && (
                 <Animated.Text
                   entering={enteringAnim(FadeInDown.duration(300))}
-                  style={[
-                    styles.errorText,
-                    theme.typography.caption,
-                    { color: theme.colors.error },
-                  ]}
+                  style={styles.errorText}
                 >
                   {errors.email}
                 </Animated.Text>
@@ -435,44 +376,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
             {/* Password Input */}
             <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
               <View
                 style={[
                   styles.inputWrapper,
-                  {
-                    borderColor: errors.password
-                      ? theme.colors.error
-                      : passwordFocused
-                        ? theme.colors.primary
-                        : theme.colors.border,
-                    backgroundColor: theme.colors.surface,
-                  },
-                  passwordFocused && {
-                    borderWidth: 2,
-                    ...Platform.select({
-                      ios: {
-                        shadowColor: theme.colors.primary,
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 8,
-                      },
-                      android: { elevation: 2 },
-                      web: {
-                        // web-only boxShadow property
-                        boxShadow: `0 0 0 3px rgba(108, 92, 231, 0.1)`,
-                      },
-                    }),
-                  },
+                  passwordFocused && styles.inputWrapperFocused,
+                  errors.password ? styles.inputWrapperError : null,
                 ]}
               >
-                <Text style={styles.inputIcon}>{'🔒'}</Text>
                 <TextInput
-                  style={[
-                    styles.modernInput,
-                    styles.passwordField,
-                    { color: theme.colors.text },
-                  ]}
-                  placeholder="Password"
-                  placeholderTextColor={theme.colors.textTertiary}
+                  style={[styles.input, styles.passwordField]}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#6B7280"
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -491,7 +406,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                   onPress={() => setShowPassword(!showPassword)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={[styles.showPasswordText, { color: theme.colors.primary }]}>
+                  <Text style={styles.showPasswordText}>
                     {showPassword ? 'Hide' : 'Show'}
                   </Text>
                 </TouchableOpacity>
@@ -499,11 +414,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               {errors.password && (
                 <Animated.Text
                   entering={enteringAnim(FadeInDown.duration(300))}
-                  style={[
-                    styles.errorText,
-                    theme.typography.caption,
-                    { color: theme.colors.error },
-                  ]}
+                  style={styles.errorText}
                 >
                   {errors.password}
                 </Animated.Text>
@@ -515,62 +426,34 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               onPress={() => navigation.navigate('ForgotPassword')}
               style={styles.forgotPassword}
             >
-              <Text
-                style={[
-                  theme.typography.body2,
-                  { color: theme.colors.primary, fontWeight: '600' },
-                ]}
-              >
-                Forgot Password?
-              </Text>
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
 
-            {/* ── Sign In Button ─────────────────────────────────────── */}
+            {/* Sign In Button */}
             <Animated.View style={buttonAnimatedStyle}>
               <TouchableOpacity
-                style={[
-                  styles.signInButton,
-                  isLoading && styles.buttonDisabled,
-                ]}
                 onPress={handleLogin}
                 onPressIn={onButtonPressIn}
                 onPressOut={onButtonPressOut}
                 disabled={isLoading}
                 activeOpacity={1}
+                style={[
+                  styles.gradientButtonTouchable,
+                  isLoading && styles.buttonDisabled,
+                ]}
               >
-                {/* Two-tone gradient simulation */}
-                <View style={styles.buttonGradient}>
-                  <View
-                    style={[
-                      styles.buttonGradientLeft,
-                      { backgroundColor: theme.colors.primary },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.buttonGradientRight,
-                      { backgroundColor: theme.colors.primaryLight },
-                    ]}
-                  />
-                  {/* Overlay to smooth the transition */}
-                  <View style={styles.buttonGradientOverlay} />
-                </View>
-                {isLoading ? (
-                  <ActivityIndicator
-                    color={theme.colors.textInverse}
-                    size="small"
-                  />
-                ) : (
-                  <Text
-                    style={[
-                      styles.signInButtonText,
-                      theme.typography.button,
-                      { color: theme.colors.textInverse },
-                    ]}
-                  >
-                    Sign In
-                  </Text>
-                )}
+                <LinearGradient
+                  colors={['#8B5CF6', '#EC4899']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.gradientButton}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.gradientButtonText}>Sign In</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
           </Animated.View>
@@ -580,27 +463,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             entering={enteringAnim(FadeInUp.duration(800).delay(500))}
             style={styles.dividerContainer}
           >
-            <View
-              style={[
-                styles.dividerLine,
-                { backgroundColor: theme.colors.border },
-              ]}
-            />
-            <Text
-              style={[
-                styles.dividerText,
-                theme.typography.caption,
-                { color: theme.colors.textTertiary },
-              ]}
-            >
-              or continue with
-            </Text>
-            <View
-              style={[
-                styles.dividerLine,
-                { backgroundColor: theme.colors.border },
-              ]}
-            />
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
           </Animated.View>
 
           {/* ── Social Login Buttons ────────────────────────────────── */}
@@ -609,49 +474,21 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.socialRow}
           >
             <TouchableOpacity
-              style={[
-                styles.socialButton,
-                {
-                  backgroundColor: theme.colors.surfaceElevated,
-                  borderColor: theme.colors.border,
-                  shadowColor: theme.colors.cardShadow,
-                },
-              ]}
-              activeOpacity={0.7}
+              style={styles.socialButton}
+              onPress={() => handleSocialAuth('apple')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.socialIcon}>G</Text>
-              <Text
-                style={[
-                  styles.socialLabel,
-                  theme.typography.body2,
-                  { color: theme.colors.text, fontWeight: '600' },
-                ]}
-              >
-                Google
-              </Text>
+              <Text style={styles.socialIconApple}>{'\uF8FF'}</Text>
+              <Text style={styles.socialLabel}>Apple</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[
-                styles.socialButton,
-                {
-                  backgroundColor: theme.colors.surfaceElevated,
-                  borderColor: theme.colors.border,
-                  shadowColor: theme.colors.cardShadow,
-                },
-              ]}
-              activeOpacity={0.7}
+              style={styles.socialButton}
+              onPress={() => handleSocialAuth('google')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.socialIconApple}>{'\uF8FF'}</Text>
-              <Text
-                style={[
-                  styles.socialLabel,
-                  theme.typography.body2,
-                  { color: theme.colors.text, fontWeight: '600' },
-                ]}
-              >
-                Apple
-              </Text>
+              <Text style={styles.socialIconGoogle}>G</Text>
+              <Text style={styles.socialLabel}>Google</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -660,26 +497,11 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             entering={enteringAnim(FadeInUp.duration(800).delay(700))}
             style={styles.footer}
           >
-            <Text
-              style={[
-                theme.typography.body2,
-                { color: theme.colors.textSecondary },
-              ]}
-            >
+            <Text style={styles.footerText}>
               Don't have an account?{' '}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text
-                style={[
-                  theme.typography.subtitle2,
-                  {
-                    color: theme.colors.primary,
-                    fontWeight: '700',
-                  },
-                ]}
-              >
-                Sign Up
-              </Text>
+              <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
           </Animated.View>
         </ScrollView>
@@ -692,6 +514,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0F0A1A',
   },
   flex: {
     flex: 1,
@@ -709,119 +532,110 @@ const styles = StyleSheet.create({
 
   // ── Header ──────────────────────────────────────────────────────
   header: {
-    alignItems: 'center',
     marginBottom: 32,
   },
-  headerGradient: {
-    position: 'absolute',
-    top: -80,
-    left: -60,
-    right: -60,
-    height: 220,
-    borderRadius: 120,
-    overflow: 'hidden',
-    opacity: 0.06,
+  logoWrapper: {
+    alignSelf: 'flex-start',
+    marginBottom: 24,
+    borderRadius: 18,
   },
-  gradientLayer1: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '60%',
-    height: '100%',
-    borderRadius: 120,
-  },
-  gradientLayer2: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: '60%',
-    height: '100%',
-    borderRadius: 120,
-  },
-  gradientLayer3: {
-    position: 'absolute',
-    bottom: -20,
-    left: '30%',
-    width: '40%',
-    height: '60%',
-    borderRadius: 80,
-    opacity: 0.5,
-  },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  logoBorder: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#6C5CE7',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-      },
-      android: { elevation: 12 },
-      web: {
-        // web-only boxShadow property
-        boxShadow: '0 8px 32px rgba(108, 92, 231, 0.35)',
-      },
-    }),
+    padding: 2.5,
   },
-  logoEmoji: {
+  logoInner: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#0F0A1A',
+    borderRadius: 15.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoTargetOuter: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoTargetMiddle: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#C084FC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoTargetCenter: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EC4899',
+  },
+  headerTitle: {
     fontSize: 32,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontWeight: '800',
-    letterSpacing: -1,
+    letterSpacing: -0.5,
+    marginBottom: 8,
   },
-  appName: {
-    fontSize: 42,
-    fontWeight: '800',
-    letterSpacing: -1,
-    marginBottom: 6,
-  },
-  tagline: {
-    textAlign: 'center',
-    opacity: 0.8,
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 24,
   },
 
-  // ── Form Card ───────────────────────────────────────────────────
-  formCard: {
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: 'rgba(108, 92, 231, 0.15)',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 1,
-        shadowRadius: 24,
-      },
-      android: { elevation: 8 },
-      web: {
-        // web-only boxShadow property
-        boxShadow: '0 8px 32px rgba(108, 92, 231, 0.12)',
-      },
-    }),
-  },
+  // ── Inputs ──────────────────────────────────────────────────────
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    color: '#6B7280',
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#1A1128',
     borderWidth: 1.5,
-    borderRadius: 16,
+    borderColor: '#2D2340',
+    borderRadius: 14,
     paddingHorizontal: 16,
-    minHeight: 56,
+    minHeight: 54,
   },
-  inputIcon: {
-    fontSize: 18,
-    marginRight: 12,
+  inputWrapperFocused: {
+    borderColor: '#8B5CF6',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#8B5CF6',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+      web: {
+        boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.1)',
+      } as any,
+    }),
   },
-  modernInput: {
+  inputWrapperError: {
+    borderColor: '#EF4444',
+  },
+  input: {
     flex: 1,
     fontSize: 16,
+    color: '#FFFFFF',
     paddingVertical: Platform.OS === 'web' ? 16 : 14,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
   },
@@ -838,78 +652,77 @@ const styles = StyleSheet.create({
   showPasswordText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#8B5CF6',
   },
   errorText: {
+    fontSize: 12,
+    color: '#EF4444',
     marginTop: 6,
-    marginLeft: 16,
+    marginLeft: 4,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 20,
+    marginBottom: 24,
     marginTop: 4,
   },
+  forgotPasswordText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EC4899',
+  },
 
-  // ── Sign In Button ──────────────────────────────────────────────
-  signInButton: {
-    borderRadius: 16,
+  // ── Gradient Button ─────────────────────────────────────────────
+  gradientButtonTouchable: {
+    borderRadius: 14,
     overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 56,
     ...Platform.select({
       ios: {
-        shadowColor: '#6C5CE7',
+        shadowColor: '#8B5CF6',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
       },
       android: { elevation: 6 },
       web: {
-        // web-only boxShadow property
-        boxShadow: '0 6px 24px rgba(108, 92, 231, 0.4)',
-      },
+        boxShadow: '0 6px 24px rgba(139, 92, 246, 0.4)',
+      } as any,
     }),
   },
-  buttonGradient: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
+  gradientButton: {
+    paddingVertical: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
   },
-  buttonGradientLeft: {
-    flex: 1,
-  },
-  buttonGradientRight: {
-    flex: 1,
-  },
-  buttonGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    left: '30%',
-    right: '30%',
-    backgroundColor: 'rgba(138, 124, 240, 0.6)',
+  gradientButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   buttonDisabled: {
     opacity: 0.7,
-  },
-  signInButtonText: {
-    zIndex: 1,
-    letterSpacing: 0.5,
   },
 
   // ── Divider ─────────────────────────────────────────────────────
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginVertical: 24,
     paddingHorizontal: 8,
   },
   dividerLine: {
     flex: 1,
     height: 1,
+    backgroundColor: '#2D2340',
   },
   dividerText: {
     marginHorizontal: 16,
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
   },
 
   // ── Social Buttons ──────────────────────────────────────────────
@@ -924,37 +737,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#1A1128',
     borderWidth: 1.5,
-    borderRadius: 16,
+    borderColor: '#2D2340',
+    borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 20,
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.6,
-        shadowRadius: 8,
-      },
-      android: { elevation: 3 },
-      web: {
-        // web-only boxShadow property
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
-      },
-    }),
   },
-  socialIcon: {
+  socialIconApple: {
     fontSize: 20,
     fontWeight: '700',
     marginRight: 8,
-    color: '#DB4437',
+    color: '#FFFFFF',
   },
-  socialIconApple: {
-    fontSize: 22,
+  socialIconGoogle: {
+    fontSize: 20,
     fontWeight: '700',
     marginRight: 8,
-    color: '#000000',
+    color: '#4285F4',
   },
   socialLabel: {
     fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 
   // ── Footer ──────────────────────────────────────────────────────
@@ -963,6 +768,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingBottom: 16,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  footerLink: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
 });
 

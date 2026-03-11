@@ -1,315 +1,780 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
-  Image,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   Dimensions,
-  ActivityIndicator,
-  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
-import { matchesApi, MatchDetail } from '../../api/matches';
-import { discoveryApi } from '../../api/discovery';
-import { formatters } from '../../utils/formatters';
-import CompatibilityBadge from '../../components/CompatibilityBadge';
-import InterestTag from '../../components/InterestTag';
+import { useModeStore } from '../../store/modeStore';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ProfileDetail'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { userId } = route.params;
-  const theme = useTheme();
+// ── Mock Data ────────────────────────────────────────────────────────────────
 
-  const [profile, setProfile] = useState<MatchDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+interface SocialProfile {
+  displayName: string;
+  age: number;
+  emoji: string;
+  distance: number;
+  isActive: boolean;
+  compatibility: number;
+  sharedInterests: number;
+  socialStyle: number;
+  vibeMatch: number;
+  currentVibe: string;
+  vibeMinutes: number;
+  bio: string;
+  interests: string[];
+}
 
-  useEffect(() => {
-    loadProfile();
-  }, [userId]);
+interface ProfessionalProfile {
+  displayName: string;
+  emoji: string;
+  role: string;
+  company: string;
+  city: string;
+  distance: number;
+  compatibility: number;
+  industryOverlap: number;
+  roleRelevance: number;
+  networkStyle: number;
+  badges: string[];
+  bio: string;
+  industryFocus: string[];
+}
 
-  const loadProfile = async () => {
-    try {
-      const data = await matchesApi.getMatchDetail(userId);
-      setProfile(data);
-    } catch (error) {
-      console.error('Failed to load profile:', error);
-      Alert.alert('Error', 'Failed to load profile details.');
-      navigation.goBack();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const MOCK_SOCIAL: SocialProfile = {
+  displayName: 'UrbanFox',
+  age: 27,
+  emoji: '\uD83E\uDD8A',
+  distance: 80,
+  isActive: true,
+  compatibility: 94,
+  sharedInterests: 90,
+  socialStyle: 95,
+  vibeMatch: 97,
+  currentVibe: 'Coffee Chat',
+  vibeMinutes: 28,
+  bio: 'Night owl who loves exploring hidden coffee shops and street art. Always up for a spontaneous adventure or deep conversation over pour-over coffee.',
+  interests: ['Photography', 'Coffee Culture', 'Street Art', 'Live Music', 'Hiking', 'Film'],
+};
 
-  const handleReport = () => {
-    Alert.alert('Report User', 'Why are you reporting this user?', [
-      {
-        text: 'Inappropriate Content',
-        onPress: () =>
-          discoveryApi.reportUser(userId, 'inappropriate_content'),
-      },
-      {
-        text: 'Harassment',
-        onPress: () => discoveryApi.reportUser(userId, 'harassment'),
-      },
-      {
-        text: 'Fake Profile',
-        onPress: () => discoveryApi.reportUser(userId, 'fake_profile'),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
+const MOCK_PROFESSIONAL: ProfessionalProfile = {
+  displayName: 'AlexChen',
+  emoji: '\uD83D\uDCBC',
+  role: 'Product Manager',
+  company: 'Stripe',
+  city: 'San Francisco',
+  distance: 150,
+  compatibility: 91,
+  industryOverlap: 95,
+  roleRelevance: 88,
+  networkStyle: 90,
+  badges: ['Networking', '150m away'],
+  bio: 'Building the future of payments. 5+ years in fintech product management. Passionate about developer experience and API design. Love connecting with fellow builders.',
+  industryFocus: ['Fintech', 'Product Strategy', 'SaaS', 'API Design', 'Developer Tools'],
+};
 
-  const handleBlock = () => {
-    Alert.alert(
-      'Block User',
-      'Are you sure you want to block this user? They will no longer be able to see you.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await discoveryApi.blockUser(userId);
-              navigation.goBack();
-            } catch {
-              Alert.alert('Error', 'Failed to block user.');
-            }
+// ── Compatibility Bar ────────────────────────────────────────────────────────
+
+interface CompatBarProps {
+  label: string;
+  value: number;
+  color: string;
+  trackColor: string;
+}
+
+const CompatBar: React.FC<CompatBarProps> = ({ label, value, color, trackColor }) => (
+  <View style={barStyles.container}>
+    <View style={barStyles.labelRow}>
+      <Text style={[barStyles.label, { color: color + 'CC' }]}>{label}</Text>
+      <Text style={[barStyles.value, { color }]}>{value}%</Text>
+    </View>
+    <View style={[barStyles.track, { backgroundColor: trackColor }]}>
+      <View
+        style={[
+          barStyles.fill,
+          {
+            backgroundColor: color,
+            width: `${value}%`,
           },
-        },
-      ],
-    );
+        ]}
+      />
+    </View>
+  </View>
+);
+
+const barStyles = StyleSheet.create({
+  container: {
+    marginBottom: 12,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  value: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  track: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+});
+
+// ── Main Component ───────────────────────────────────────────────────────────
+
+const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { mode: paramMode } = route.params;
+  const theme = useTheme();
+  const { mode: storeMode } = useModeStore();
+  const mode = paramMode ?? storeMode;
+  const isSocial = mode === 'social';
+
+  const handleConnect = () => {
+    // Navigate to chat or trigger connection request
+    navigation.goBack();
   };
 
-  if (isLoading) {
+  // ── Social Mode Render ───────────────────────────────────────────────────
+  if (isSocial) {
+    const profile = MOCK_SOCIAL;
     return (
       <SafeAreaView
-        style={[
-          styles.container,
-          styles.centered,
-          { backgroundColor: theme.colors.background },
-        ]}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['top']}
       >
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </SafeAreaView>
-    );
-  }
-
-  if (!profile) return null;
-
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
-      <View style={styles.headerBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text
-            style={[theme.typography.body1, { color: theme.colors.primary }]}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Header Gradient Area */}
+          <LinearGradient
+            colors={[theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.headerGradient}
           >
-            Back
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleReport}>
-          <Text
-            style={[theme.typography.body2, { color: theme.colors.error }]}
-          >
-            Report
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Photo Carousel */}
-        <View style={styles.photoCarousel}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={(e) => {
-              const index = Math.round(
-                e.nativeEvent.contentOffset.x / SCREEN_WIDTH,
-              );
-              setCurrentPhotoIndex(index);
-            }}
-            scrollEventThrottle={200}
-          >
-            {profile.profilePhotos.map((photo, index) => (
-              <Image
-                key={index}
-                source={{ uri: photo }}
-                style={styles.photo}
-                resizeMode="cover"
-              />
-            ))}
-          </ScrollView>
-          {profile.profilePhotos.length > 1 && (
-            <View style={styles.photoIndicators}>
-              {profile.profilePhotos.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.indicator,
-                    {
-                      backgroundColor:
-                        index === currentPhotoIndex
-                          ? theme.colors.textInverse
-                          : 'rgba(255,255,255,0.5)',
-                    },
-                  ]}
-                />
-              ))}
+            {/* Navigation */}
+            <View style={styles.headerNav}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={styles.navButton}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.navButtonText}>{'\u2190'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.navButton} activeOpacity={0.7}>
+                <Text style={styles.navButtonText}>{'\u2022\u2022\u2022'}</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        {/* Profile Info */}
-        <View style={styles.infoSection}>
-          <View style={styles.nameRow}>
-            <Text
-              style={[theme.typography.h3, { color: theme.colors.text }]}
-            >
-              {profile.displayName}, {profile.age}
-            </Text>
-            <CompatibilityBadge score={profile.compatibilityScore} />
+            {/* Avatar + Info */}
+            <View style={styles.headerInfo}>
+              <View style={styles.avatarLarge}>
+                <Text style={styles.avatarLargeEmoji}>{profile.emoji}</Text>
+              </View>
+              <Text style={styles.headerName}>
+                {profile.displayName} {'\u00B7'} {profile.age}
+              </Text>
+              <View style={styles.headerMeta}>
+                <View style={styles.activeIndicator} />
+                <Text style={styles.headerMetaText}>
+                  {profile.distance}m away {'\u00B7'} Active now
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+
+          {/* Compatibility Score Card */}
+          <View
+            style={[
+              styles.section,
+              styles.compatCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <View style={styles.compatHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Compatibility Score
+              </Text>
+              <View
+                style={[
+                  styles.compatScoreBadge,
+                  { backgroundColor: theme.colors.primary + '15' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.compatScoreText,
+                    { color: theme.colors.primary },
+                  ]}
+                >
+                  {profile.compatibility}%
+                </Text>
+              </View>
+            </View>
+
+            <CompatBar
+              label="Shared Interests"
+              value={profile.sharedInterests}
+              color={theme.colors.primary}
+              trackColor={theme.colors.primary + '15'}
+            />
+            <CompatBar
+              label="Social Style"
+              value={profile.socialStyle}
+              color={theme.colors.secondary}
+              trackColor={theme.colors.secondary + '15'}
+            />
+            <CompatBar
+              label="Vibe Match"
+              value={profile.vibeMatch}
+              color={theme.colors.success}
+              trackColor={theme.colors.success + '15'}
+            />
           </View>
 
-          {profile.profession && (
+          {/* Current Vibe */}
+          <View style={[styles.section, { paddingHorizontal: 20 }]}>
             <Text
               style={[
-                theme.typography.subtitle1,
-                { color: theme.colors.textSecondary, marginTop: 4 },
+                styles.sectionLabel,
+                { color: theme.colors.textTertiary },
               ]}
             >
-              {profile.profession}
-              {profile.company ? ` at ${profile.company}` : ''}
+              CURRENT VIBE
             </Text>
-          )}
+            <LinearGradient
+              colors={[theme.colors.gradient.start, theme.colors.gradient.end]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.vibePill}
+            >
+              <Text style={styles.vibePillText}>
+                {'\u2615'} {profile.currentVibe} {'\u00B7'} Active {profile.vibeMinutes} min
+              </Text>
+            </LinearGradient>
+          </View>
 
-          {profile.bio && (
+          {/* About */}
+          <View style={[styles.section, { paddingHorizontal: 20 }]}>
             <Text
               style={[
-                theme.typography.body1,
-                { color: theme.colors.textSecondary, marginTop: 12 },
+                styles.sectionLabel,
+                { color: theme.colors.textTertiary },
               ]}
             >
+              ABOUT
+            </Text>
+            <Text style={[styles.bioText, { color: theme.colors.text }]}>
               {profile.bio}
             </Text>
-          )}
-        </View>
-
-        {/* Interests */}
-        {profile.interests.length > 0 && (
-          <View style={styles.section}>
-            <Text
-              style={[
-                theme.typography.subtitle2,
-                { color: theme.colors.text, marginBottom: 12 },
-              ]}
-            >
-              Interests
-            </Text>
-            <View style={styles.tagsRow}>
-              {profile.interests.map((interest) => (
-                <InterestTag key={interest} label={interest} />
-              ))}
-            </View>
           </View>
-        )}
 
-        {/* Vibes */}
-        {profile.vibes.length > 0 && (
-          <View style={styles.section}>
+          {/* Shared Interests */}
+          <View style={[styles.section, { paddingHorizontal: 20 }]}>
             <Text
               style={[
-                theme.typography.subtitle2,
-                { color: theme.colors.text, marginBottom: 12 },
+                styles.sectionLabel,
+                { color: theme.colors.textTertiary },
               ]}
             >
-              Vibes
+              SHARED INTERESTS
             </Text>
-            <View style={styles.tagsRow}>
-              {profile.vibes.map((vibe) => (
+            <View style={styles.tagsContainer}>
+              {profile.interests.map((interest) => (
                 <View
-                  key={vibe}
+                  key={interest}
                   style={[
-                    styles.vibeChip,
-                    { backgroundColor: theme.colors.accent + '20' },
+                    styles.interestTag,
+                    {
+                      backgroundColor: theme.colors.primary + '15',
+                      borderColor: theme.colors.primary + '30',
+                    },
                   ]}
                 >
                   <Text
                     style={[
-                      theme.typography.caption,
-                      { color: theme.colors.accent },
+                      styles.interestTagText,
+                      { color: theme.colors.primary },
                     ]}
                   >
-                    {vibe}
+                    {interest}
                   </Text>
                 </View>
               ))}
             </View>
           </View>
-        )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
-        {/* Block Button */}
-        <TouchableOpacity style={styles.blockButton} onPress={handleBlock}>
+  // ── Professional Mode Render ─────────────────────────────────────────────
+  const profile = MOCK_PROFESSIONAL;
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['top']}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header */}
+        <View style={[styles.proHeader, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.headerNav}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={[styles.navButton, { backgroundColor: theme.colors.background }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.navButtonText, { color: theme.colors.text }]}>
+                {'\u2190'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.navButton, { backgroundColor: theme.colors.background }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.navButtonText, { color: theme.colors.text }]}>
+                {'\u2022\u2022\u2022'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.proHeaderInfo}>
+            <View
+              style={[
+                styles.proAvatarLarge,
+                { backgroundColor: theme.colors.primary + '15' },
+              ]}
+            >
+              <Text style={styles.proAvatarEmoji}>{profile.emoji}</Text>
+            </View>
+            <Text style={[styles.proName, { color: theme.colors.text }]}>
+              {profile.displayName}
+            </Text>
+            <Text style={[styles.proRole, { color: theme.colors.textSecondary }]}>
+              {profile.role} @ {profile.company} {'\u00B7'} {profile.city}
+            </Text>
+          </View>
+        </View>
+
+        {/* Compatibility */}
+        <View
+          style={[
+            styles.section,
+            styles.compatCard,
+            {
+              backgroundColor: theme.colors.surface,
+              marginHorizontal: 20,
+            },
+          ]}
+        >
+          <View style={styles.compatHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Compatibility
+            </Text>
+            <View
+              style={[
+                styles.compatScoreBadge,
+                { backgroundColor: theme.colors.primary + '15' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.compatScoreText,
+                  { color: theme.colors.primary },
+                ]}
+              >
+                {profile.compatibility}%
+              </Text>
+            </View>
+          </View>
+
+          <CompatBar
+            label="Industry Overlap"
+            value={profile.industryOverlap}
+            color={theme.colors.primary}
+            trackColor={theme.colors.primary + '15'}
+          />
+          <CompatBar
+            label="Role Relevance"
+            value={profile.roleRelevance}
+            color={theme.colors.secondary}
+            trackColor={theme.colors.secondary + '15'}
+          />
+          <CompatBar
+            label="Network Style"
+            value={profile.networkStyle}
+            color={theme.colors.success}
+            trackColor={theme.colors.success + '15'}
+          />
+        </View>
+
+        {/* Badges */}
+        <View style={[styles.section, { paddingHorizontal: 20 }]}>
+          <View style={styles.badgesRow}>
+            {profile.badges.map((badge) => (
+              <View
+                key={badge}
+                style={[
+                  styles.proBadge,
+                  {
+                    backgroundColor: theme.colors.primary + '10',
+                    borderColor: theme.colors.primary + '30',
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.proBadgeText, { color: theme.colors.primary }]}
+                >
+                  {badge}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Background */}
+        <View style={[styles.section, { paddingHorizontal: 20 }]}>
           <Text
             style={[
-              theme.typography.body2,
-              { color: theme.colors.error },
+              styles.sectionLabel,
+              { color: theme.colors.textTertiary },
             ]}
           >
-            Block User
+            BACKGROUND
           </Text>
-        </TouchableOpacity>
+          <Text style={[styles.bioText, { color: theme.colors.text }]}>
+            {profile.bio}
+          </Text>
+        </View>
+
+        {/* Industry Focus */}
+        <View style={[styles.section, { paddingHorizontal: 20 }]}>
+          <Text
+            style={[
+              styles.sectionLabel,
+              { color: theme.colors.textTertiary },
+            ]}
+          >
+            INDUSTRY FOCUS
+          </Text>
+          <View style={styles.tagsContainer}>
+            {profile.industryFocus.map((tag) => (
+              <View
+                key={tag}
+                style={[
+                  styles.interestTag,
+                  {
+                    backgroundColor: theme.colors.primary + '10',
+                    borderColor: theme.colors.primary + '25',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.interestTagText,
+                    { color: theme.colors.primary },
+                  ]}
+                >
+                  {tag}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Connect Button */}
+        <View style={[styles.section, { paddingHorizontal: 20, paddingBottom: 32 }]}>
+          <TouchableOpacity onPress={handleConnect} activeOpacity={0.85}>
+            <LinearGradient
+              colors={[theme.colors.gradient.start, theme.colors.gradient.end]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.connectButton}
+            >
+              <Text style={styles.connectButtonText}>Connect</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  headerBar: {
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+
+  // Social Header Gradient
+  headerGradient: {
+    paddingTop: 8,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  headerNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    marginBottom: 20,
   },
-  scrollContent: { paddingBottom: 32 },
-  photoCarousel: { position: 'relative' },
-  photo: { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 1.2 },
-  photoIndicators: {
-    position: 'absolute',
-    bottom: 12,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  navButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  headerInfo: {
+    alignItems: 'center',
+  },
+  avatarLarge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  avatarLargeEmoji: {
+    fontSize: 48,
+  },
+  headerName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 6,
+  },
+  headerMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
-  indicator: { width: 8, height: 8, borderRadius: 4 },
-  infoSection: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
-  nameRow: {
+  activeIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  headerMetaText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // Professional Header
+  proHeader: {
+    paddingTop: 8,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  proHeaderInfo: {
+    alignItems: 'center',
+  },
+  proAvatarLarge: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  proAvatarEmoji: {
+    fontSize: 44,
+  },
+  proName: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  proRole: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+
+  // Sections
+  section: {
+    marginTop: 16,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+
+  // Compat Card
+  compatCard: {
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 20,
+    marginTop: -16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  compatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  section: { paddingHorizontal: 24, marginTop: 20 },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  vibeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  blockButton: {
+  compatScoreBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  compatScoreText: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+
+  // Vibe Pill
+  vibePill: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
     alignItems: 'center',
+  },
+  vibePillText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  // Bio
+  bioText: {
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '400',
+  },
+
+  // Tags
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  interestTag: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  interestTagText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Pro Badges
+  badgesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  proBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  proBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Connect Button
+  connectButton: {
     paddingVertical: 16,
-    marginTop: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F766E',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  connectButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });
 

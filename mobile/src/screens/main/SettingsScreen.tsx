@@ -1,24 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Switch,
   Platform,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { showAlert } from '../../utils/alert';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { locationService } from '../../services/location';
-import { locationApi } from '../../api/location';
 import { authApi } from '../../api/auth';
 import { socketService } from '../../services/socket';
 import { notificationService } from '../../services/notifications';
+import { showAlert } from '../../utils/alert';
 import { enteringAnim } from '../../utils/animations';
 import type { RootStackScreenProps } from '../../navigation/types';
 
@@ -26,34 +24,26 @@ type Props = RootStackScreenProps<'Settings'>;
 
 const ANIMATION_BASE_DELAY = 80;
 
+// ---------------------------------------------------------------------------
+// Section Item Types
+// ---------------------------------------------------------------------------
+interface SettingsMenuItem {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}
+
+// ===========================================================================
+// SettingsScreen
+// ===========================================================================
 const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
-  const { logout } = useAuthStore();
-  const { isTrackingActive, locationPermissionGranted } = useLocationStore();
-
-  const [locationVisible, setLocationVisible] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [proximityAlerts, setProximityAlerts] = useState(true);
+  const { user, logout } = useAuthStore();
 
   // ---------------------------------------------------------------------------
-  // Business Logic (unchanged)
+  // Business Logic
   // ---------------------------------------------------------------------------
-
-  const handleToggleLocationVisibility = async (value: boolean) => {
-    setLocationVisible(value);
-    try {
-      await locationApi.setLocationVisibility(value);
-      if (value && !isTrackingActive) {
-        await locationService.startTracking();
-      } else if (!value) {
-        await locationService.stopTracking();
-      }
-    } catch {
-      setLocationVisible(!value);
-      showAlert('Error', 'Failed to update location visibility.');
-    }
-  };
-
   const doLogout = async () => {
     try {
       await authApi.logout();
@@ -97,104 +87,164 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // ---------------------------------------------------------------------------
-  // Reusable Renders
+  // Section Definitions
   // ---------------------------------------------------------------------------
+  const accountItems: SettingsMenuItem[] = [
+    {
+      icon: '\uD83D\uDC64',
+      title: 'Edit Profile',
+      subtitle: 'Name, photo, bio, avatar',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDD12',
+      title: 'Change Password',
+      subtitle: 'Update your login credentials',
+      onPress: () => {},
+    },
+    {
+      icon: '\u2709\uFE0F',
+      title: 'Email Address',
+      subtitle: user?.email ?? 'user@email.com',
+      onPress: () => {},
+    },
+  ];
 
-  const renderToggleRow = (
-    title: string,
-    description: string,
-    value: boolean,
-    onToggle: (v: boolean) => void,
-    isLast?: boolean,
-  ) => (
-    <View
-      style={[
-        styles.toggleRow,
-        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.borderLight },
-      ]}
-    >
-      <View style={styles.toggleInfo}>
-        <Text style={[styles.toggleTitle, { color: theme.colors.text }]}>
-          {title}
-        </Text>
-        <Text style={[styles.toggleDescription, { color: theme.colors.textSecondary }]}>
-          {description}
-        </Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{
-          false: theme.colors.border,
-          true: theme.colors.primaryLight,
-        }}
-        thumbColor={value ? theme.colors.primary : '#f4f3f4'}
-        ios_backgroundColor={theme.colors.border}
-      />
-    </View>
-  );
+  const preferencesItems: SettingsMenuItem[] = [
+    {
+      icon: '\uD83D\uDC9C',
+      title: 'Social Preferences',
+      subtitle: 'Mode specific interests & filters',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDCBC',
+      title: 'Professional Preferences',
+      subtitle: 'Networking & mentorship settings',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDCCD',
+      title: 'Discovery Radius',
+      subtitle: 'Set your search distance',
+      onPress: () => navigation.navigate('Filters'),
+    },
+  ];
 
-  const renderMenuItem = (
-    title: string,
-    onPress: () => void,
-    isLast?: boolean,
-  ) => (
+  const privacyItems: SettingsMenuItem[] = [
+    {
+      icon: '\uD83D\uDEAB',
+      title: 'Blocked Users',
+      subtitle: 'Manage blocked profiles',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDEE1\uFE0F',
+      title: 'Privacy Settings',
+      subtitle: 'Location visibility & data',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDD14',
+      title: 'Notification Settings',
+      subtitle: 'Push, alerts & reminders',
+      onPress: () => navigation.navigate('Notifications'),
+    },
+  ];
+
+  const supportItems: SettingsMenuItem[] = [
+    {
+      icon: '\u2753',
+      title: 'Help Center',
+      subtitle: 'FAQs and guides',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDCE3',
+      title: 'Report a Problem',
+      subtitle: 'Let us know about issues',
+      onPress: () => {},
+    },
+    {
+      icon: '\uD83D\uDCC4',
+      title: 'Terms & Privacy',
+      subtitle: 'Legal information',
+      onPress: () => {},
+    },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Renderers
+  // ---------------------------------------------------------------------------
+  const renderMenuItem = (item: SettingsMenuItem, isLast: boolean) => (
     <TouchableOpacity
+      key={item.title}
       activeOpacity={0.6}
       style={[
         styles.menuRow,
-        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.borderLight },
+        !isLast && {
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: theme.colors.borderLight,
+        },
       ]}
-      onPress={onPress}
+      onPress={item.onPress}
     >
-      <Text style={[styles.menuTitle, { color: theme.colors.text }]}>
-        {title}
-      </Text>
+      <View style={styles.menuIconContainer}>
+        <Text style={styles.menuIcon}>{item.icon}</Text>
+      </View>
+      <View style={styles.menuTextContainer}>
+        <Text style={[styles.menuTitle, { color: theme.colors.text }]}>
+          {item.title}
+        </Text>
+        <Text style={[styles.menuSubtitle, { color: theme.colors.textTertiary }]}>
+          {item.subtitle}
+        </Text>
+      </View>
       <Text style={[styles.chevron, { color: theme.colors.textTertiary }]}>
         {'\u203A'}
       </Text>
     </TouchableOpacity>
   );
 
-  const renderSectionHeader = (emoji: string, label: string) => (
-    <View style={[styles.sectionPill, { backgroundColor: theme.colors.primaryLight + '1A' }]}>
-      <Text style={styles.sectionEmoji}>{emoji}</Text>
-      <Text style={[styles.sectionLabel, { color: theme.colors.primary }]}>
+  const renderSection = (
+    label: string,
+    items: SettingsMenuItem[],
+    delay: number,
+  ) => (
+    <Animated.View
+      entering={enteringAnim(FadeInDown.delay(delay).duration(500).springify())}
+      style={styles.section}
+    >
+      <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>
         {label}
       </Text>
-    </View>
-  );
-
-  // ---------------------------------------------------------------------------
-  // Card wrapper with shadow
-  // ---------------------------------------------------------------------------
-
-  const renderCard = (children: React.ReactNode) => (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: theme.colors.surfaceElevated,
-          shadowColor: theme.colors.cardShadow,
-        },
-      ]}
-    >
-      {children}
-    </View>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surfaceElevated,
+            shadowColor: theme.colors.cardShadow,
+          },
+        ]}
+      >
+        {items.map((item, index) =>
+          renderMenuItem(item, index === items.length - 1),
+        )}
+      </View>
+    </Animated.View>
   );
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
-
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.surface }]}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       {/* Header */}
       <Animated.View
         entering={enteringAnim(FadeIn.duration(400))}
-        style={[styles.headerBar, { backgroundColor: theme.colors.surface }]}
+        style={styles.headerBar}
       >
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -207,11 +257,9 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            {'\u2699\uFE0F'} Settings
-          </Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+          Settings
+        </Text>
 
         <View style={styles.headerSpacer} />
       </Animated.View>
@@ -220,101 +268,67 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ---- Location Section ---- */}
+        {/* ---- User Card ---- */}
         <Animated.View
-          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 1).duration(500).springify())}
-          style={styles.section}
-        >
-          {renderSectionHeader('\uD83D\uDCCD', 'Location')}
-          {renderCard(
-            renderToggleRow(
-              'Location Visibility',
-              'Allow others to see your approximate distance',
-              locationVisible,
-              handleToggleLocationVisibility,
-              true,
-            ),
-          )}
-        </Animated.View>
-
-        {/* ---- Notifications Section ---- */}
-        <Animated.View
-          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 2).duration(500).springify())}
-          style={styles.section}
-        >
-          {renderSectionHeader('\uD83D\uDD14', 'Notifications')}
-          {renderCard(
-            <>
-              {renderToggleRow(
-                'Push Notifications',
-                'Receive notifications for matches and messages',
-                notificationsEnabled,
-                setNotificationsEnabled,
-              )}
-              {renderToggleRow(
-                'Proximity Alerts',
-                'Get notified when compatible people are nearby',
-                proximityAlerts,
-                setProximityAlerts,
-                true,
-              )}
-            </>,
-          )}
-        </Animated.View>
-
-        {/* ---- Account Section ---- */}
-        <Animated.View
-          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 3).duration(500).springify())}
-          style={styles.section}
-        >
-          {renderSectionHeader('\uD83D\uDC64', 'Account')}
-          {renderCard(
-            <>
-              {renderMenuItem('Change Password', () => {
-                /* navigate to change password */
-              })}
-              {renderMenuItem('Blocked Users', () => {
-                /* navigate to blocked users */
-              })}
-              {renderMenuItem('Privacy Policy', () => {
-                /* navigate to privacy policy */
-              })}
-              {renderMenuItem('Terms of Service', () => {
-                /* navigate to terms of service */
-              }, true)}
-            </>,
-          )}
-        </Animated.View>
-
-        {/* ---- Actions ---- */}
-        <Animated.View
-          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 4).duration(500).springify())}
-          style={styles.actionsSection}
+          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY).duration(500).springify())}
         >
           <TouchableOpacity
             activeOpacity={0.7}
             style={[
-              styles.signOutButton,
+              styles.userCard,
               {
-                borderColor: theme.colors.primary,
-                backgroundColor: theme.colors.primary + '0A',
+                backgroundColor: theme.colors.surfaceElevated,
+                shadowColor: theme.colors.cardShadow,
               },
             ]}
+          >
+            <View style={[styles.userAvatar, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Text style={styles.userAvatarEmoji}>{'\uD83E\uDD8A'}</Text>
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: theme.colors.text }]}>
+                {user?.displayName ?? 'UrbanFox'}
+              </Text>
+              <Text style={[styles.userEmail, { color: theme.colors.textTertiary }]}>
+                {user?.email ?? 'alex@proximity.app'}
+              </Text>
+            </View>
+            <Text style={[styles.chevron, { color: theme.colors.textTertiary }]}>
+              {'\u203A'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* ---- Sections ---- */}
+        {renderSection('ACCOUNT', accountItems, ANIMATION_BASE_DELAY * 2)}
+        {renderSection('PREFERENCES', preferencesItems, ANIMATION_BASE_DELAY * 3)}
+        {renderSection('PRIVACY & SAFETY', privacyItems, ANIMATION_BASE_DELAY * 4)}
+        {renderSection('SUPPORT', supportItems, ANIMATION_BASE_DELAY * 5)}
+
+        {/* ---- Danger Zone ---- */}
+        <Animated.View
+          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 6).duration(500).springify())}
+          style={styles.dangerZone}
+        >
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.logoutButton}
             onPress={handleLogout}
           >
-            <Text style={styles.signOutEmoji}>{'\uD83D\uDEAA'}</Text>
-            <Text style={[styles.signOutText, { color: theme.colors.primary }]}>
-              Sign Out
+            <Text style={[styles.logoutText, { color: theme.colors.error }]}>
+              Log Out
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             activeOpacity={0.6}
-            style={styles.deleteButton}
+            style={[
+              styles.deleteAccountButton,
+              { borderColor: theme.colors.error + '40' },
+            ]}
             onPress={handleDeleteAccount}
           >
-            <Text style={styles.deleteEmoji}>{'\u26A0\uFE0F'}</Text>
-            <Text style={[styles.deleteText, { color: theme.colors.error }]}>
+            <Text style={[styles.deleteAccountText, { color: theme.colors.error }]}>
               Delete Account
             </Text>
           </TouchableOpacity>
@@ -322,10 +336,9 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
         {/* ---- Version ---- */}
         <Animated.View
-          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 5).duration(500).springify())}
+          entering={enteringAnim(FadeInDown.delay(ANIMATION_BASE_DELAY * 7).duration(500).springify())}
           style={styles.versionContainer}
         >
-          <Text style={[styles.versionEmoji]}>{'\uD83D\uDCE1'}</Text>
           <Text style={[styles.versionText, { color: theme.colors.textTertiary }]}>
             Proximity v1.0.0
           </Text>
@@ -335,16 +348,15 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-// -----------------------------------------------------------------------------
+// ===========================================================================
 // Styles
-// -----------------------------------------------------------------------------
-
+// ===========================================================================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
 
-  /* ---- Header ---- */
+  // ---- Header ----
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,11 +375,9 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     marginTop: Platform.OS === 'ios' ? -2 : 0,
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
   headerTitle: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -376,41 +386,70 @@ const styles = StyleSheet.create({
     width: 40,
   },
 
-  /* ---- Scroll ---- */
+  // ---- Scroll ----
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 48,
   },
 
-  /* ---- Sections ---- */
-  section: {
-    marginBottom: 28,
-  },
-  sectionPill: {
+  // ---- User Card ----
+  userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 12,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 28,
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
-  sectionEmoji: {
-    fontSize: 14,
-    marginRight: 6,
+  userAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sectionLabel: {
-    fontSize: 13,
+  userAvatarEmoji: {
+    fontSize: 28,
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  userName: {
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  },
+  userEmail: {
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: 2,
   },
 
-  /* ---- Card ---- */
+  // ---- Section ----
+  section: {
+    marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 4,
+  },
   card: {
     borderRadius: 16,
-    paddingHorizontal: 18,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowOffset: { width: 0, height: 4 },
@@ -423,39 +462,36 @@ const styles = StyleSheet.create({
     }),
   },
 
-  /* ---- Toggle Rows ---- */
-  toggleRow: {
+  // ---- Menu Row ----
+  menuRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  toggleInfo: {
+  menuIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuIcon: {
+    fontSize: 18,
+  },
+  menuTextContainer: {
     flex: 1,
-    marginRight: 16,
+    marginLeft: 12,
   },
-  toggleTitle: {
+  menuTitle: {
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 22,
   },
-  toggleDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 3,
-  },
-
-  /* ---- Menu Rows ---- */
-  menuRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    lineHeight: 22,
+  menuSubtitle: {
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 1,
   },
   chevron: {
     fontSize: 24,
@@ -463,55 +499,35 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
 
-  /* ---- Actions ---- */
-  actionsSection: {
-    marginTop: 4,
+  // ---- Danger Zone ----
+  dangerZone: {
     alignItems: 'center',
+    marginTop: 12,
+    gap: 16,
   },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: '100%',
+  logoutButton: {
+    paddingVertical: 12,
   },
-  signOutEmoji: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  signOutText: {
+  logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    letterSpacing: 0.3,
   },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    paddingVertical: 10,
+  deleteAccountButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  deleteEmoji: {
-    fontSize: 15,
-    marginRight: 6,
-  },
-  deleteText: {
+  deleteAccountText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 
-  /* ---- Version ---- */
+  // ---- Version ----
   versionContainer: {
     alignItems: 'center',
-    marginTop: 36,
+    marginTop: 32,
     paddingBottom: 8,
-  },
-  versionEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
   },
   versionText: {
     fontSize: 12,

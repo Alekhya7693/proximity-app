@@ -1,607 +1,613 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   FlatList,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-import { chatApi, Message } from '../../api/chat';
-import { socketService } from '../../services/socket';
-import ChatBubble from '../../components/ChatBubble';
-import { formatters } from '../../utils/formatters';
 import type { ChatStackScreenProps } from '../../navigation/types';
 
-// ---------------------------------------------------------------------------
-// Animated helpers (pure RN Animated API -- no extra deps)
-// ---------------------------------------------------------------------------
-import { Animated, Easing } from 'react-native';
-
-/** Pulsing loader used while the initial message list is loading. */
-const PulsingLoader: React.FC<{ color: string }> = ({ color }) => {
-  const pulse = useRef(new Animated.Value(0.35)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0.35,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
-
-  return (
-    <View style={styles.loadingContainer}>
-      <Animated.View style={{ opacity: pulse }}>
-        <ActivityIndicator size="large" color={color} />
-      </Animated.View>
-      <Animated.Text
-        style={[
-          styles.loadingLabel,
-          { color, opacity: pulse },
-        ]}
-      >
-        Loading messages
-      </Animated.Text>
-    </View>
-  );
-};
-
-/** Three-dot bouncing typing indicator. */
-const TypingDots: React.FC<{ color: string }> = ({ color }) => {
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const bounce = (val: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(val, {
-            toValue: -6,
-            duration: 260,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(val, {
-            toValue: 0,
-            duration: 260,
-            easing: Easing.in(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-
-    const a1 = bounce(dot1, 0);
-    const a2 = bounce(dot2, 160);
-    const a3 = bounce(dot3, 320);
-    a1.start();
-    a2.start();
-    a3.start();
-    return () => {
-      a1.stop();
-      a2.stop();
-      a3.stop();
-    };
-  }, [dot1, dot2, dot3]);
-
-  const dotStyle = (anim: Animated.Value) => ({
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: color,
-    marginHorizontal: 2.5,
-    transform: [{ translateY: anim }],
-  });
-
-  return (
-    <View style={styles.typingDotsRow}>
-      <Animated.View style={dotStyle(dot1)} />
-      <Animated.View style={dotStyle(dot2)} />
-      <Animated.View style={dotStyle(dot3)} />
-    </View>
-  );
-};
-
-/** Animated send button with scale feedback. */
-const SendButton: React.FC<{
-  enabled: boolean;
-  primaryColor: string;
-  primaryLightColor: string;
-  disabledColor: string;
-  onPress: () => void;
-}> = ({ enabled, primaryColor, primaryLightColor, disabledColor, onPress }) => {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.82,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
-  };
-
-  return (
-    <TouchableOpacity
-      activeOpacity={1}
-      disabled={!enabled}
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-    >
-      <Animated.View
-        style={[
-          styles.sendButton,
-          {
-            backgroundColor: enabled ? primaryColor : disabledColor,
-            transform: [{ scale }],
-            // subtle outer glow when active
-            ...(enabled
-              ? {
-                  shadowColor: primaryLightColor,
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.45,
-                  shadowRadius: 8,
-                  elevation: 6,
-                }
-              : {}),
-          },
-        ]}
-      >
-        <Text style={styles.sendArrow}>{'\u2191'}</Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Main screen
-// ---------------------------------------------------------------------------
 type Props = ChatStackScreenProps<'ChatDetail'>;
 
+// ── Mock Data ────────────────────────────────────────────────────────────────
+
+interface MockMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  time: string;
+  isOwn: boolean;
+  isRead: boolean;
+}
+
+const MOCK_MESSAGES: MockMessage[] = [
+  {
+    id: 'msg1',
+    senderId: 'other',
+    text: 'Hey! I noticed we both love coffee shops. Have you tried the new one on 5th?',
+    time: '10:30 AM',
+    isOwn: false,
+    isRead: true,
+  },
+  {
+    id: 'msg2',
+    senderId: 'me',
+    text: 'Not yet! I heard they have amazing pour-overs though. Is it good?',
+    time: '10:32 AM',
+    isOwn: true,
+    isRead: true,
+  },
+  {
+    id: 'msg3',
+    senderId: 'other',
+    text: 'It\'s incredible! The barista does this really cool latte art too. You should totally check it out.',
+    time: '10:34 AM',
+    isOwn: false,
+    isRead: true,
+  },
+  {
+    id: 'msg4',
+    senderId: 'me',
+    text: 'That sounds amazing! Want to check it out together sometime?',
+    time: '10:35 AM',
+    isOwn: true,
+    isRead: true,
+  },
+  {
+    id: 'msg5',
+    senderId: 'other',
+    text: 'That coffee shop sounds amazing! Want to check it out?',
+    time: '10:37 AM',
+    isOwn: false,
+    isRead: true,
+  },
+  {
+    id: 'msg6',
+    senderId: 'me',
+    text: 'Absolutely! How about tomorrow afternoon?',
+    time: '10:38 AM',
+    isOwn: true,
+    isRead: false,
+  },
+];
+
+// ── Component ────────────────────────────────────────────────────────────────
+
 const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { matchId, recipientName } = route.params;
+  const { matchId, recipientName, recipientAvatar, isActive } = route.params;
   const theme = useTheme();
   const { user } = useAuthStore();
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages] = useState<MockMessage[]>(MOCK_MESSAGES);
   const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSending, setIsSending] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    navigation.setOptions({ title: recipientName });
-  }, [navigation, recipientName]);
-
-  const loadMessages = useCallback(
-    async (pageNum: number = 1) => {
-      try {
-        const result = await chatApi.getMessages(matchId, pageNum);
-        if (pageNum === 1) {
-          setMessages(result.messages.reverse());
-        } else {
-          setMessages((prev) => [...result.messages.reverse(), ...prev]);
-        }
-        setHasMore(result.hasMore);
-      } catch (error) {
-        console.error('Failed to load messages:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [matchId],
-  );
-
-  useEffect(() => {
-    loadMessages();
-    socketService.joinChat(matchId);
-
-    // Mark messages as read
-    chatApi.markAsRead(matchId).catch(() => {});
-
-    return () => {
-      socketService.leaveChat(matchId);
-    };
-  }, [matchId, loadMessages]);
-
-  // Listen for new messages
-  useEffect(() => {
-    socketService.setHandlers({
-      onNewMessage: (data) => {
-        if (data.matchId === matchId) {
-          const newMessage: Message = {
-            id: data.id,
-            matchId: data.matchId,
-            senderId: data.senderId,
-            text: data.text,
-            type: 'text',
-            sentAt: data.sentAt,
-            readAt: null,
-            status: 'delivered',
-          };
-          setMessages((prev) => [...prev, newMessage]);
-          chatApi.markAsRead(matchId).catch(() => {});
-        }
-      },
-      onTyping: (data) => {
-        if (data.matchId === matchId && data.userId !== user?.id) {
-          setIsTyping(data.isTyping);
-        }
-      },
-      onReadReceipt: (data) => {
-        if (data.matchId === matchId) {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === data.messageId
-                ? { ...msg, readAt: data.readAt, status: 'read' as const }
-                : msg,
-            ),
-          );
-        }
-      },
-    });
-  }, [matchId, user?.id]);
-
-  const handleSend = async () => {
+  const handleSend = () => {
     const text = inputText.trim();
-    if (!text || isSending) return;
-
+    if (!text) return;
     setInputText('');
-    setIsSending(true);
-
-    // Optimistic update
-    const tempMessage: Message = {
-      id: `temp-${Date.now()}`,
-      matchId,
-      senderId: user?.id ?? '',
-      text,
-      type: 'text',
-      sentAt: new Date().toISOString(),
-      readAt: null,
-      status: 'sending',
-    };
-    setMessages((prev) => [...prev, tempMessage]);
-
-    try {
-      const sentMessage = await chatApi.sendMessage({ matchId, text });
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === tempMessage.id ? sentMessage : msg,
-        ),
-      );
-    } catch {
-      // Mark as failed
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === tempMessage.id
-            ? { ...msg, status: 'sending' as const }
-            : msg,
-        ),
-      );
-    } finally {
-      setIsSending(false);
-    }
+    // In production, this would send via API/socket
   };
 
-  const handleInputChange = (text: string) => {
-    setInputText(text);
+  // ── Render Message ──────────────────────────────────────────────────────
 
-    // Send typing indicator
-    socketService.sendTyping(matchId, true);
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    typingTimeoutRef.current = setTimeout(() => {
-      socketService.sendTyping(matchId, false);
-    }, 2000);
-  };
-
-  const handleLoadEarlier = () => {
-    if (!hasMore || isLoading) return;
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadMessages(nextPage);
-  };
-
-  // ---------------------------------------------------------------------------
-  // Render helpers
-  // ---------------------------------------------------------------------------
-
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isOwn = item.senderId === user?.id;
-    const showDate =
-      index === 0 ||
-      formatters.formatChatDate(item.sentAt) !==
-        formatters.formatChatDate(messages[index - 1].sentAt);
-
-    return (
-      <>
-        {showDate && (
-          <View style={styles.dateHeaderWrapper}>
-            <View
-              style={[
-                styles.dateChip,
-                { backgroundColor: theme.colors.surface },
-              ]}
+  const renderMessage = ({ item }: { item: MockMessage }) => {
+    if (item.isOwn) {
+      return (
+        <View style={[styles.messageBubbleRow, styles.ownRow]}>
+          <View style={styles.ownBubbleWrapper}>
+            <LinearGradient
+              colors={[theme.colors.gradient.start, theme.colors.gradient.end]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ownBubble}
             >
+              <Text style={styles.ownBubbleText}>{item.text}</Text>
+            </LinearGradient>
+            <View style={styles.messageFooter}>
+              <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>
+                {item.time}
+              </Text>
               <Text
                 style={[
-                  theme.typography.caption,
-                  styles.dateChipText,
-                  { color: theme.colors.textTertiary },
+                  styles.readReceipt,
+                  {
+                    color: item.isRead
+                      ? theme.colors.primary
+                      : theme.colors.textTertiary,
+                  },
                 ]}
               >
-                {formatters.formatChatDate(item.sentAt)}
+                {'\u2713\u2713'}
               </Text>
             </View>
           </View>
-        )}
-        <ChatBubble message={item} isOwn={isOwn} />
-      </>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.messageBubbleRow, styles.otherRow]}>
+        <View style={styles.otherBubbleWrapper}>
+          <View
+            style={[
+              styles.otherBubble,
+              {
+                backgroundColor: theme.colors.surface,
+                opacity: isActive ? 1 : 0.5,
+              },
+            ]}
+          >
+            <Text style={[styles.otherBubbleText, { color: theme.colors.text }]}>
+              {item.text}
+            </Text>
+          </View>
+          <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>
+            {item.time}
+          </Text>
+        </View>
+      </View>
     );
   };
 
-  // ---------------------------------------------------------------------------
-  // JSX
-  // ---------------------------------------------------------------------------
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      edges={['bottom']}
-    >
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+  // ── Active State ────────────────────────────────────────────────────────
+
+  if (isActive) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
       >
-        {/* Typing indicator -- positioned above message list */}
-        {isTyping && (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          {/* Header */}
           <View
             style={[
-              styles.typingBanner,
-              { backgroundColor: theme.colors.surface },
+              styles.header,
+              { backgroundColor: theme.colors.surfaceElevated },
             ]}
           >
-            <TypingDots color={theme.colors.primary} />
-            <Text
-              style={[
-                theme.typography.caption,
-                styles.typingLabel,
-                { color: theme.colors.textSecondary },
-              ]}
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              activeOpacity={0.7}
             >
-              {recipientName} is typing
+              <Text style={[styles.backText, { color: theme.colors.primary }]}>
+                {'\u2190'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.headerCenter}>
+              <View
+                style={[
+                  styles.headerAvatar,
+                  { backgroundColor: theme.colors.primary + '15' },
+                ]}
+              >
+                <Text style={styles.headerAvatarEmoji}>
+                  {recipientAvatar || '\uD83E\uDD8A'}
+                </Text>
+              </View>
+              <View>
+                <Text style={[styles.headerName, { color: theme.colors.text }]}>
+                  {recipientName}
+                </Text>
+                <View style={styles.headerStatusRow}>
+                  <View style={styles.greenDot} />
+                  <Text
+                    style={[
+                      styles.headerStatus,
+                      { color: theme.colors.success },
+                    ]}
+                  >
+                    Within range {'\u00B7'} 80m
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+              <Text style={[styles.moreText, { color: theme.colors.textTertiary }]}>
+                {'\u2022\u2022\u2022'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Active Banner */}
+          <View
+            style={[
+              styles.statusBanner,
+              { backgroundColor: theme.colors.success + '12' },
+            ]}
+          >
+            <Text style={[styles.bannerText, { color: theme.colors.success }]}>
+              {'\uD83D\uDCCD'} Chat active {'\u00B7'} Both within 300m {'\u00B7'}{' '}
+              Expires if you leave
             </Text>
           </View>
-        )}
 
-        {/* Message list or loading state */}
-        {isLoading ? (
-          <PulsingLoader color={theme.colors.primary} />
-        ) : (
+          {/* Messages */}
           <FlatList
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messageList}
-            inverted={false}
+            showsVerticalScrollIndicator={false}
             onContentSizeChange={() =>
               flatListRef.current?.scrollToEnd({ animated: false })
             }
-            onScrollToIndexFailed={() => {}}
-            showsVerticalScrollIndicator={false}
-            ListHeaderComponent={
-              hasMore ? (
-                <TouchableOpacity
-                  style={[
-                    styles.loadMoreBtn,
-                    { backgroundColor: theme.colors.surface },
-                  ]}
-                  onPress={handleLoadEarlier}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.loadMoreArrow,
-                      { color: theme.colors.primary },
-                    ]}
-                  >
-                    {'\u2191'}
-                  </Text>
-                  <Text
-                    style={[
-                      theme.typography.buttonSmall,
-                      styles.loadMoreLabel,
-                      { color: theme.colors.primary },
-                    ]}
-                  >
-                    Load earlier messages
-                  </Text>
-                </TouchableOpacity>
-              ) : null
-            }
           />
-        )}
 
-        {/* ----------------------------------------------------------------- */}
-        {/* Input bar                                                         */}
-        {/* ----------------------------------------------------------------- */}
+          {/* Input Bar */}
+          <View
+            style={[
+              styles.inputBar,
+              {
+                backgroundColor: theme.colors.surfaceElevated,
+                borderTopColor: theme.colors.borderLight,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.inputPill,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.borderLight,
+                },
+              ]}
+            >
+              <TextInput
+                style={[styles.textInput, { color: theme.colors.text }]}
+                placeholder="Type a message..."
+                placeholderTextColor={theme.colors.textTertiary}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                maxLength={2000}
+              />
+            </View>
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={!inputText.trim()}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.sendButton,
+                  {
+                    backgroundColor: inputText.trim()
+                      ? theme.colors.primary
+                      : theme.colors.border,
+                  },
+                ]}
+              >
+                <Text style={styles.sendArrow}>{'\u2191'}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Greyed Out State (Not Active) ───────────────────────────────────────
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['bottom']}
+    >
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.colors.surfaceElevated },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.backText, { color: theme.colors.primary }]}>
+            {'\u2190'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <View
+            style={[
+              styles.headerAvatar,
+              { backgroundColor: theme.colors.textTertiary + '15' },
+            ]}
+          >
+            <Text style={[styles.headerAvatarEmoji, { opacity: 0.5 }]}>
+              {recipientAvatar || '\uD83E\uDD8A'}
+            </Text>
+          </View>
+          <View>
+            <Text
+              style={[
+                styles.headerName,
+                { color: theme.colors.textTertiary },
+              ]}
+            >
+              {recipientName}
+            </Text>
+            <View style={styles.headerStatusRow}>
+              <View style={styles.redDot} />
+              <Text style={[styles.headerStatus, { color: theme.colors.error }]}>
+                Out of range {'\u00B7'} Chat locked
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+          <Text style={[styles.moreText, { color: theme.colors.textTertiary }]}>
+            {'\u2022\u2022\u2022'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Locked Banner */}
+      <View
+        style={[
+          styles.lockedBanner,
+          { backgroundColor: theme.colors.error + '10' },
+        ]}
+      >
+        <Text style={[styles.lockedBannerText, { color: theme.colors.error }]}>
+          {'\uD83D\uDD12'} Chat greyed out -- {recipientName} left the area.
+          Messages are read-only. Chat deletes in 46 hours 12 min.
+        </Text>
+        {/* Progress bar */}
         <View
           style={[
-            styles.inputBar,
-            {
-              backgroundColor: theme.colors.surfaceElevated,
-              borderTopColor: theme.colors.borderLight,
-              // frosted / elevated look
-              shadowColor: theme.colors.cardShadow,
-              shadowOffset: { width: 0, height: -4 },
-              shadowOpacity: 1,
-              shadowRadius: 12,
-              elevation: 10,
-            },
+            styles.progressTrack,
+            { backgroundColor: theme.colors.error + '15' },
           ]}
         >
           <View
             style={[
-              styles.inputPill,
+              styles.progressFill,
               {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.borderLight,
+                backgroundColor: theme.colors.error,
+                width: '65%',
               },
             ]}
-          >
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  color: theme.colors.text,
-                },
-              ]}
-              placeholder="Type a message..."
-              placeholderTextColor={theme.colors.textTertiary}
-              value={inputText}
-              onChangeText={handleInputChange}
-              multiline
-              maxLength={2000}
-            />
-          </View>
-
-          <SendButton
-            enabled={!!inputText.trim() && !isSending}
-            primaryColor={theme.colors.primary}
-            primaryLightColor={theme.colors.primaryLight}
-            disabledColor={theme.colors.border}
-            onPress={handleSend}
           />
         </View>
-      </KeyboardAvoidingView>
+      </View>
+
+      {/* Greyed Out Messages */}
+      <FlatList
+        data={messages}
+        renderItem={({ item }) => (
+          <View style={styles.greyedMessageRow}>
+            {renderMessage({ item })}
+          </View>
+        )}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.messageList}
+        showsVerticalScrollIndicator={false}
+        style={{ opacity: 0.45 }}
+      />
+
+      {/* No Input Bar -- read only */}
     </SafeAreaView>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  /* Layout */
-  container: { flex: 1 },
-  flex: { flex: 1 },
-
-  /* Loading */
-  loadingContainer: {
+  container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 14,
   },
-  loadingLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0.3,
+  flex: {
+    flex: 1,
   },
 
-  /* Typing banner */
-  typingBanner: {
+  // Header
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    marginHorizontal: 48,
-    alignSelf: 'center',
-  },
-  typingDotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginRight: 8,
   },
-  typingLabel: {
-    marginLeft: 2,
+  backText: {
+    fontSize: 22,
+    fontWeight: '600',
+  },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarEmoji: {
+    fontSize: 22,
+  },
+  headerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  headerStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  greenDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  redDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  headerStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  moreButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreText: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 2,
   },
 
-  /* Messages */
+  // Status Banner (Active)
+  statusBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  bannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // Locked Banner
+  lockedBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  lockedBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 19,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+
+  // Messages
   messageList: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
   },
-
-  /* Date header chip */
-  dateHeaderWrapper: {
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  dateChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 100,
-  },
-  dateChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-
-  /* Load earlier */
-  loadMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 100,
+  messageBubbleRow: {
     marginBottom: 8,
   },
-  loadMoreArrow: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 6,
+  ownRow: {
+    alignItems: 'flex-end',
   },
-  loadMoreLabel: {
-    fontSize: 13,
+  otherRow: {
+    alignItems: 'flex-start',
+  },
+  ownBubbleWrapper: {
+    maxWidth: '78%',
+    alignItems: 'flex-end',
+  },
+  otherBubbleWrapper: {
+    maxWidth: '78%',
+    alignItems: 'flex-start',
+  },
+  ownBubble: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+  },
+  ownBubbleText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  otherBubble: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+  },
+  otherBubbleText: {
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  messageTime: {
+    fontSize: 11,
+    fontWeight: '400',
+    marginTop: 3,
+  },
+  readReceipt: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 
-  /* Input bar (frosted-glass feel) */
+  // Greyed message row
+  greyedMessageRow: {
+    opacity: 1, // overall list is set to 0.45
+  },
+
+  // Input Bar
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -626,8 +632,6 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 0,
   },
-
-  /* Send button */
   sendButton: {
     width: 44,
     height: 44,

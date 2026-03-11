@@ -1,573 +1,562 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   Dimensions,
   TouchableOpacity,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withRepeat,
-  withTiming,
-  withSequence,
-  withDelay,
-  interpolate,
-  runOnJS,
-} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
-import { useModeStore } from '../../store/modeStore';
-import { useLocationStore } from '../../store/locationStore';
-import { discoveryApi, DiscoveryProfile, SwipeResult } from '../../api/discovery';
-import SwipeCard from '../../components/SwipeCard';
-import ModeToggle from '../../components/ModeToggle';
-import MatchPromptModal from '../../components/MatchPromptModal';
-import EmptyState from '../../components/EmptyState';
-import VibeSelector from '../../components/VibeSelector';
-import { enteringAnim } from '../../utils/animations';
+import { useModeStore, AppMode } from '../../store/modeStore';
 import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'Discover'>;
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── Animated Action Button ────────────────────────────────────────────────────
-// Wraps each action button with a spring bounce on press via reanimated
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+// ── Mock Data ────────────────────────────────────────────────────────────────
 
-interface ActionButtonProps {
-  onPress: () => void;
-  size: number;
-  style: object;
-  children: React.ReactNode;
+interface MockProfile {
+  id: string;
+  displayName: string;
+  age: number;
+  emoji: string;
+  distance: number;
+  compatibility: number;
+  tags: string[];
+  // Professional fields
+  role?: string;
+  company?: string;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ onPress, size, style, children }) => {
-  const scale = useSharedValue(1);
+const SOCIAL_PROFILES: MockProfile[] = [
+  {
+    id: '1',
+    displayName: 'UrbanFox',
+    age: 27,
+    emoji: '\uD83E\uDD8A',
+    distance: 80,
+    compatibility: 94,
+    tags: ['Coffee', 'Photography', 'Hiking', 'Live Music'],
+  },
+  {
+    id: '2',
+    displayName: 'NeonDrift',
+    age: 24,
+    emoji: '\uD83C\uDF1F',
+    distance: 120,
+    compatibility: 87,
+    tags: ['Art', 'Gaming', 'Anime', 'Cooking'],
+  },
+  {
+    id: '3',
+    displayName: 'WildPetal',
+    age: 29,
+    emoji: '\uD83C\uDF3A',
+    distance: 45,
+    compatibility: 91,
+    tags: ['Yoga', 'Reading', 'Travel', 'Wine'],
+  },
+];
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+const PROFESSIONAL_PROFILES: MockProfile[] = [
+  {
+    id: '4',
+    displayName: 'AlexChen',
+    emoji: '\uD83D\uDCBC',
+    age: 31,
+    distance: 150,
+    compatibility: 91,
+    role: 'Product Manager',
+    company: 'Stripe',
+    tags: ['Fintech', 'Product Strategy', 'SaaS'],
+  },
+  {
+    id: '5',
+    displayName: 'MayaPatel',
+    emoji: '\uD83D\uDE80',
+    age: 28,
+    distance: 200,
+    compatibility: 88,
+    role: 'Senior Engineer',
+    company: 'Vercel',
+    tags: ['React', 'TypeScript', 'Open Source'],
+  },
+  {
+    id: '6',
+    displayName: 'JordanLee',
+    emoji: '\uD83C\uDFA8',
+    age: 26,
+    distance: 90,
+    compatibility: 85,
+    role: 'UX Designer',
+    company: 'Figma',
+    tags: ['Design Systems', 'Prototyping', 'User Research'],
+  },
+];
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.85, { damping: 8, stiffness: 400 });
-  };
+// ── Component ────────────────────────────────────────────────────────────────
 
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 6, stiffness: 300, mass: 0.8 });
-  };
-
-  return (
-    <AnimatedTouchable
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={1}
-      style={[
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          justifyContent: 'center' as const,
-          alignItems: 'center' as const,
-        },
-        style,
-        animatedStyle,
-      ]}
-    >
-      {children}
-    </AnimatedTouchable>
-  );
-};
-
-// ─── Floating Decorative Dot ───────────────────────────────────────────────────
-// Small pulsing dots that float behind the card area for a premium ambient feel
-interface FloatingDotProps {
-  x: number;
-  y: number;
-  size: number;
-  color: string;
-  delay: number;
-}
-
-const FloatingDot: React.FC<FloatingDotProps> = ({ x, y, size, color, delay }) => {
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(0);
-
-  useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.6, { duration: 2200 }),
-          withTiming(0.15, { duration: 2200 }),
-        ),
-        -1,
-        true,
-      ),
-    );
-    translateY.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(-12, { duration: 3000 }),
-          withTiming(12, { duration: 3000 }),
-        ),
-        -1,
-        true,
-      ),
-    );
-  }, [delay, opacity, translateY]);
-
-  const dotStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  return (
-    <Animated.View
-      style={[
-        {
-          position: 'absolute',
-          left: x,
-          top: y,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: color,
-        },
-        dotStyle,
-      ]}
-    />
-  );
-};
-
-// ─── Pulsing Loader ────────────────────────────────────────────────────────────
-const PulsingLoader: React.FC<{ color: string }> = ({ color }) => {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.4);
-
-  useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.2, { duration: 800 }),
-        withTiming(1, { duration: 800 }),
-      ),
-      -1,
-      true,
-    );
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 800 }),
-        withTiming(0.4, { duration: 800 }),
-      ),
-      -1,
-      true,
-    );
-  }, [scale, opacity]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={[styles.loaderContainer, animStyle]}>
-      <View style={[styles.loaderRing, { borderColor: color + '30' }]}>
-        <View style={[styles.loaderRingInner, { borderColor: color }]}>
-          <ActivityIndicator size="large" color={color} />
-        </View>
-      </View>
-      <Text style={[styles.loaderText, { color: color + 'AA' }]}>
-        Finding your vibe...
-      </Text>
-    </Animated.View>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// DiscoverScreen
-// ═══════════════════════════════════════════════════════════════════════════════
 const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
-  const { mode } = useModeStore();
-  const { currentLocation } = useLocationStore();
+  const { mode, setMode } = useModeStore();
+  const isSocial = mode === 'social';
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [profiles, setProfiles] = useState<DiscoveryProfile[]>([]);
+  const profiles = isSocial ? SOCIAL_PROFILES : PROFESSIONAL_PROFILES;
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [matchResult, setMatchResult] = useState<SwipeResult | null>(null);
-  const [showVibeSelector, setShowVibeSelector] = useState(false);
-  const [activeVibes, setActiveVibes] = useState<string[]>([]);
-  const pageRef = useRef(1);
-
-  // ── Data Loading ───────────────────────────────────────────────────────────
-  const loadProfiles = useCallback(async () => {
-    try {
-      const result = await discoveryApi.getFeed(
-        {
-          mode,
-          maxDistance: 50000,
-          ageRange: { min: 18, max: 100 },
-          genderPreference: [],
-          vibes: activeVibes.length > 0 ? activeVibes : undefined,
-        },
-        pageRef.current,
-      );
-
-      if (pageRef.current === 1) {
-        setProfiles(result.profiles);
-        setCurrentIndex(0);
-      } else {
-        setProfiles((prev) => [...prev, ...result.profiles]);
-      }
-    } catch (error) {
-      console.error('Failed to load profiles:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [mode, activeVibes]);
-
-  useEffect(() => {
-    pageRef.current = 1;
-    setIsLoading(true);
-    loadProfiles();
-  }, [mode, activeVibes, loadProfiles]);
-
-  // ── Swipe Handler ──────────────────────────────────────────────────────────
-  const handleSwipe = async (direction: 'left' | 'right') => {
-    const profile = profiles[currentIndex];
-    if (!profile) return;
-
-    const action = direction === 'right' ? 'like' : 'pass';
-
-    try {
-      const result = await discoveryApi.swipe({
-        targetUserId: profile.id,
-        action,
-        mode,
-      });
-
-      if (result.matched) {
-        setMatchResult(result);
-      }
-    } catch {
-      console.error('Swipe failed');
-    }
-
-    setCurrentIndex((prev) => {
-      const next = prev + 1;
-      // Preload more profiles when running low
-      if (next >= profiles.length - 3) {
-        pageRef.current += 1;
-        loadProfiles();
-      }
-      return next;
-    });
-  };
-
-  const handleProfilePress = (profile: DiscoveryProfile) => {
-    navigation.navigate('ProfileDetail', { userId: profile.id });
-  };
-
-  const handleVibesSelected = (vibes: string[]) => {
-    setActiveVibes(vibes);
-    setShowVibeSelector(false);
-  };
-
-  // ── Derived ────────────────────────────────────────────────────────────────
   const currentProfile = profiles[currentIndex];
 
-  // Floating dots configuration — scattered around the card area
-  const floatingDots: FloatingDotProps[] = [
-    { x: 24, y: 60, size: 8, color: theme.colors.primary + '40', delay: 0 },
-    { x: SCREEN_WIDTH - 50, y: 120, size: 6, color: theme.colors.secondary + '35', delay: 400 },
-    { x: 40, y: SCREEN_HEIGHT * 0.42, size: 10, color: theme.colors.accent + '30', delay: 800 },
-    { x: SCREEN_WIDTH - 65, y: SCREEN_HEIGHT * 0.35, size: 7, color: theme.colors.primaryLight + '40', delay: 1200 },
-    { x: 60, y: SCREEN_HEIGHT * 0.22, size: 5, color: theme.colors.secondary + '25', delay: 600 },
-    { x: SCREEN_WIDTH - 40, y: SCREEN_HEIGHT * 0.55, size: 9, color: theme.colors.primary + '25', delay: 1000 },
-    { x: SCREEN_WIDTH * 0.5 - 10, y: 40, size: 6, color: theme.colors.accent + '20', delay: 1400 },
-  ];
+  const handleSwipe = useCallback(
+    (direction: 'left' | 'right') => {
+      if (direction === 'right' && currentProfile) {
+        // Simulate match for demo
+      }
+      setCurrentIndex((prev) => (prev + 1) % profiles.length);
+    },
+    [currentProfile, profiles.length],
+  );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const handleProfilePress = useCallback(() => {
+    if (currentProfile) {
+      navigation.navigate('ProfileDetail', {
+        userId: currentProfile.id,
+        mode,
+      });
+    }
+  }, [currentProfile, navigation, mode]);
+
+  const handleModeSwitch = useCallback(
+    async (newMode: AppMode) => {
+      await setMode(newMode);
+      setCurrentIndex(0);
+    },
+    [setMode],
+  );
+
+  // Gradient colors for the card
+  const cardGradientColors: [string, string, string] = isSocial
+    ? [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end]
+    : [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end];
+
+  const modeToggleGradient: [string, string] = isSocial
+    ? [theme.colors.gradient.start, theme.colors.gradient.end]
+    : [theme.colors.gradient.start, theme.colors.gradient.end];
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top']}
     >
-      {/* ─── Header ────────────────────────────────────────────────────────── */}
-      <Animated.View
-        entering={enteringAnim(FadeInDown.duration(500).delay(100))}
-        style={styles.header}
-      >
-        <ModeToggle />
-
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-          Discover
-        </Text>
-
-        <TouchableOpacity
-          onPress={() => setShowVibeSelector(true)}
-          activeOpacity={0.7}
-          style={[
-            styles.vibesButton,
-            {
-              backgroundColor: theme.colors.primary + '12',
-              borderColor: theme.colors.primary + '25',
-            },
-          ]}
-        >
-          <Text style={styles.vibesButtonEmoji}>{'\u2728'}</Text>
-          <Text style={[styles.vibesButtonText, { color: theme.colors.primary }]}>
-            Vibes
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Proximity
           </Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* ─── Active Vibes Chips Bar ────────────────────────────────────────── */}
-      {activeVibes.length > 0 && (
-        <Animated.View
-          entering={enteringAnim(FadeInDown.duration(400).delay(200))}
-          style={styles.vibesBar}
-        >
-          <Animated.ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.vibesScrollContent}
-          >
-            {activeVibes.map((vibe, index) => (
-              <Animated.View
-                key={vibe}
-                entering={enteringAnim(FadeIn.duration(300).delay(index * 80))}
-                style={[
-                  styles.vibeChip,
-                  {
-                    backgroundColor: theme.colors.primary + '18',
-                    borderColor: theme.colors.primary + '30',
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.vibeChipDot,
-                    { backgroundColor: theme.colors.primary },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.vibeChipText,
-                    { color: theme.colors.primary },
-                  ]}
-                >
-                  {vibe}
-                </Text>
-              </Animated.View>
-            ))}
-            <TouchableOpacity
-              onPress={() => setShowVibeSelector(true)}
-              style={[
-                styles.vibeChipAdd,
-                { borderColor: theme.colors.textTertiary + '50' },
-              ]}
-            >
-              <Text style={[styles.vibeChipAddText, { color: theme.colors.textTertiary }]}>
-                + Add
-              </Text>
-            </TouchableOpacity>
-          </Animated.ScrollView>
-        </Animated.View>
-      )}
-
-      {/* ─── Card Container with Floating Decorations ──────────────────────── */}
-      <View style={styles.cardContainer}>
-        {/* Floating ambient dots */}
-        {!isLoading && currentProfile && floatingDots.map((dot, i) => (
-          <FloatingDot key={`dot-${i}`} {...dot} />
-        ))}
-
-        {isLoading ? (
-          <PulsingLoader color={theme.colors.primary} />
-        ) : !currentProfile ? (
-          <Animated.View
-            entering={enteringAnim(FadeIn.duration(600))}
-            style={styles.emptyStateWrapper}
-          >
-            <View style={styles.premiumEmptyState}>
-              <View
-                style={[
-                  styles.emptyIconContainer,
-                  { backgroundColor: theme.colors.primary + '10' },
-                ]}
-              >
-                <Text style={styles.emptyEmoji}>{'\uD83C\uDF1F'}</Text>
-              </View>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-                You've seen everyone!
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-                New people are joining all the time.{'\n'}Check back soon or broaden your vibes.
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  pageRef.current = 1;
-                  setIsLoading(true);
-                  loadProfiles();
-                }}
-                activeOpacity={0.8}
-                style={[
-                  styles.emptyRefreshButton,
-                  { backgroundColor: theme.colors.primary },
-                ]}
-              >
-                <Text style={styles.emptyRefreshText}>Refresh Feed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowVibeSelector(true)}
-                activeOpacity={0.7}
-                style={[
-                  styles.emptyVibesButton,
-                  { borderColor: theme.colors.primary + '40' },
-                ]}
-              >
-                <Text style={[styles.emptyVibesText, { color: theme.colors.primary }]}>
-                  {'\u2728'} Adjust Vibes
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        ) : (
-          <>
-            {/* Next card behind — scaled down with reduced opacity */}
-            {profiles[currentIndex + 1] && (
-              <Animated.View
-                entering={enteringAnim(FadeIn.duration(300))}
-                style={[styles.cardWrapper, styles.nextCard]}
-              >
-                <SwipeCard
-                  profile={profiles[currentIndex + 1]}
-                  onSwipe={() => {}}
-                  onPress={() => {}}
-                  isActive={false}
-                />
-              </Animated.View>
-            )}
-
-            {/* Active card */}
-            <Animated.View
-              key={`card-${currentIndex}`}
-              entering={enteringAnim(FadeIn.duration(400))}
-              style={styles.cardWrapper}
-            >
-              <SwipeCard
-                profile={currentProfile}
-                onSwipe={handleSwipe}
-                onPress={() => handleProfilePress(currentProfile)}
-                isActive
-              />
-            </Animated.View>
-          </>
-        )}
-      </View>
-
-      {/* ─── Action Buttons ────────────────────────────────────────────────── */}
-      {currentProfile && !isLoading && (
-        <Animated.View
-          entering={enteringAnim(FadeInUp.duration(500).delay(200))}
-          style={styles.actionButtons}
-        >
-          {/* Pass Button */}
-          <ActionButton
-            onPress={() => handleSwipe('left')}
-            size={72}
-            style={styles.passBtn}
-          >
-            <Text style={styles.passBtnText}>{'\u2715'}</Text>
-          </ActionButton>
-
-          {/* Super-Like Button (star) */}
-          <ActionButton
-            onPress={() => handleSwipe('right')}
-            size={56}
+          <View
             style={[
-              styles.superLikeBtn,
+              styles.modeBadge,
               {
-                backgroundColor: theme.colors.accent,
+                backgroundColor: isSocial ? '#10B981' + '20' : '#3B82F6' + '20',
               },
             ]}
           >
-            <Text style={styles.superLikeBtnText}>{'\u2B50'}</Text>
-          </ActionButton>
-
-          {/* Like Button */}
-          <ActionButton
-            onPress={() => handleSwipe('right')}
-            size={72}
-            style={[
-              styles.likeBtn,
-              { backgroundColor: theme.colors.primary },
-            ]}
+            <Text
+              style={[
+                styles.modeBadgeText,
+                { color: isSocial ? '#10B981' : '#3B82F6' },
+              ]}
+            >
+              {isSocial ? 'SOCIAL' : 'PRO'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[styles.headerIcon, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Notifications')}
+            activeOpacity={0.7}
           >
-            <Text style={styles.likeBtnText}>{'\u2665'}</Text>
-          </ActionButton>
-        </Animated.View>
+            <Text style={styles.headerIconText}>{'\uD83D\uDD14'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerIcon, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Settings')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.headerIconText}>{'\u2699\uFE0F'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── Active Nearby Status ────────────────────────────────────────── */}
+      <View style={styles.statusRow}>
+        <View style={styles.statusDot} />
+        <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
+          12 active nearby
+        </Text>
+        <Text style={[styles.statusSeparator, { color: theme.colors.textTertiary }]}>
+          {' \u00B7 '}
+        </Text>
+        <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
+          Downtown Core
+        </Text>
+      </View>
+
+      {/* ── Mode Toggle ─────────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.modeToggleContainer,
+          { backgroundColor: theme.colors.surface },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.modeTab}
+          onPress={() => handleModeSwitch('social')}
+          activeOpacity={0.8}
+        >
+          {isSocial ? (
+            <LinearGradient
+              colors={['#8B5CF6', '#EC4899']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modeTabGradient}
+            >
+              <Text style={styles.modeTabActiveText}>Social</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.modeTabInactive}>
+              <Text style={[styles.modeTabInactiveText, { color: theme.colors.textTertiary }]}>
+                Social
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.modeTab}
+          onPress={() => handleModeSwitch('professional')}
+          activeOpacity={0.8}
+        >
+          {!isSocial ? (
+            <LinearGradient
+              colors={['#0F766E', '#0284C7']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modeTabGradient}
+            >
+              <Text style={styles.modeTabActiveText}>Professional</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.modeTabInactive}>
+              <Text style={[styles.modeTabInactiveText, { color: theme.colors.textTertiary }]}>
+                Professional
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Quick Action Pills ──────────────────────────────────────────── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillsRow}
+        style={styles.pillsScroll}
+      >
+        <View
+          style={[
+            styles.vibePill,
+            {
+              backgroundColor: theme.colors.primary + '18',
+              borderColor: theme.colors.primary + '40',
+            },
+          ]}
+        >
+          <Text style={styles.vibePillEmoji}>{'\u2615'}</Text>
+          <Text style={[styles.vibePillText, { color: theme.colors.primary }]}>
+            Coffee Chat
+          </Text>
+          <Text style={[styles.vibePillTimer, { color: theme.colors.textTertiary }]}>
+            28m
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.actionPill,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.actionPillText, { color: theme.colors.text }]}>
+            + Set Vibe
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.actionPill,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Filters')}
+        >
+          <Text style={styles.actionPillIcon}>{'\u26A1'}</Text>
+          <Text style={[styles.actionPillText, { color: theme.colors.text }]}>
+            Filter
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* ── Main Card Stack ─────────────────────────────────────────────── */}
+      <View style={styles.cardContainer}>
+        {currentProfile && (
+          <TouchableOpacity
+            activeOpacity={0.95}
+            onPress={handleProfilePress}
+            style={styles.cardTouchable}
+          >
+            <LinearGradient
+              colors={cardGradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.card}
+            >
+              {/* Distance Badge - Top Left */}
+              <View style={styles.distanceBadge}>
+                <Text style={styles.distanceBadgeText}>
+                  {currentProfile.distance}m
+                </Text>
+              </View>
+
+              {/* Match % Badge - Top Right */}
+              <View
+                style={[
+                  styles.matchBadge,
+                  { backgroundColor: 'rgba(255,255,255,0.2)' },
+                ]}
+              >
+                <Text style={styles.matchBadgeText}>
+                  {currentProfile.compatibility}%
+                </Text>
+              </View>
+
+              {/* Center Avatar Emoji */}
+              <View style={styles.avatarEmojiContainer}>
+                <View style={styles.avatarEmojiCircle}>
+                  <Text style={styles.avatarEmoji}>{currentProfile.emoji}</Text>
+                </View>
+              </View>
+
+              {/* Bottom Info */}
+              <View style={styles.cardBottom}>
+                <Text style={styles.cardName}>
+                  {currentProfile.displayName}
+                  {isSocial
+                    ? ` ${currentProfile.age}`
+                    : ''}
+                </Text>
+                {!isSocial && currentProfile.role && (
+                  <Text style={styles.cardRole}>
+                    {currentProfile.role}
+                    {currentProfile.company ? ` @ ${currentProfile.company}` : ''}
+                  </Text>
+                )}
+
+                {/* Tags */}
+                <View style={styles.cardTags}>
+                  {currentProfile.tags.map((tag) => (
+                    <View key={tag} style={styles.cardTag}>
+                      <Text style={styles.cardTagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── Swipe Action Buttons ────────────────────────────────────────── */}
+      {currentProfile && (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.passButton}
+            onPress={() => handleSwipe('left')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.passButtonText}>{'\u2715'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleSwipe('right')}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={modeToggleGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.likeButton}
+            >
+              <Text style={styles.likeButtonText}>{'\u2665'}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       )}
-
-      {/* ─── Match Prompt Modal ────────────────────────────────────────────── */}
-      <MatchPromptModal
-        visible={!!matchResult?.matched}
-        matchedUser={matchResult?.matchedUser ?? null}
-        matchId={matchResult?.matchId ?? ''}
-        onSayHi={(matchId) => {
-          setMatchResult(null);
-          navigation.navigate('ChatList');
-        }}
-        onMaybeLater={() => setMatchResult(null)}
-      />
-
-      {/* ─── Vibe Selector Bottom Sheet ────────────────────────────────────── */}
-      <VibeSelector
-        visible={showVibeSelector}
-        mode={mode}
-        selectedVibes={activeVibes}
-        onSelect={handleVibesSelected}
-        onClose={() => setShowVibeSelector(false)}
-      />
     </SafeAreaView>
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Styles
-// ═══════════════════════════════════════════════════════════════════════════════
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const CARD_WIDTH = SCREEN_WIDTH - 48;
+const CARD_HEIGHT = CARD_WIDTH * 1.25;
+
 const styles = StyleSheet.create({
-  // ─── Container ────────────────────────────────────────────────────────────
   container: {
     flex: 1,
   },
 
-  // ─── Header ───────────────────────────────────────────────────────────────
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  vibesButton: {
+  modeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  modeBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIconText: {
+    fontSize: 18,
+  },
+
+  // Status row
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  statusSeparator: {
+    fontSize: 13,
+  },
+
+  // Mode Toggle
+  modeToggleContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 8,
+    borderRadius: 14,
+    padding: 4,
+  },
+  modeTab: {
+    flex: 1,
+  },
+  modeTabGradient: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeTabActiveText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  modeTabInactive: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeTabInactiveText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  // Quick Action Pills
+  pillsScroll: {
+    marginTop: 12,
+    maxHeight: 44,
+  },
+  pillsRow: {
+    paddingHorizontal: 20,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  vibePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  vibePillEmoji: {
+    fontSize: 14,
+  },
+  vibePillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  vibePillTimer: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -576,109 +565,149 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 4,
   },
-  vibesButtonEmoji: {
-    fontSize: 14,
+  actionPillIcon: {
+    fontSize: 13,
   },
-  vibesButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-
-  // ─── Vibes Chips Bar ──────────────────────────────────────────────────────
-  vibesBar: {
-    paddingBottom: 8,
-  },
-  vibesScrollContent: {
-    paddingHorizontal: 20,
-    gap: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  vibeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 6,
-  },
-  vibeChipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  vibeChipText: {
+  actionPillText: {
     fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  vibeChipAdd: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  vibeChipAddText: {
-    fontSize: 13,
-    fontWeight: '500',
   },
 
-  // ─── Card Container ───────────────────────────────────────────────────────
+  // Card Container
   cardContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 12,
   },
-  cardWrapper: {
-    position: 'absolute',
-    width: SCREEN_WIDTH - 32,
+  cardTouchable: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 24,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
   },
-  nextCard: {
-    transform: [{ scale: 0.94 }],
-    opacity: 0.55,
+  card: {
+    flex: 1,
+    borderRadius: 24,
+    padding: 20,
+    justifyContent: 'space-between',
   },
 
-  // ─── Action Buttons ───────────────────────────────────────────────────────
+  // Distance Badge
+  distanceBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  distanceBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Match % Badge
+  matchBadge: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  matchBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Avatar Emoji
+  avatarEmojiContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  avatarEmojiCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEmoji: {
+    fontSize: 56,
+  },
+
+  // Card Bottom
+  cardBottom: {
+    gap: 6,
+  },
+  cardName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  cardRole: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  cardTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  cardTag: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  cardTagText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Action Buttons
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 24,
-    paddingVertical: 18,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 18,
-    zIndex: 100,
-    position: 'relative',
+    gap: 32,
+    paddingVertical: 16,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
   },
-  passBtn: {
+  passButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#FFFFFF',
     borderWidth: 2.5,
     borderColor: '#FF6B6B',
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Platform.select({
       ios: {
         shadowColor: '#FF6B6B',
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  passBtnText: {
-    fontSize: 32,
-    color: '#FF6B6B',
-    fontWeight: '700',
-  },
-  superLikeBtn: {
-    ...Platform.select({
-      ios: {
-        shadowColor: '#00CEC9',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
         shadowRadius: 10,
       },
       android: {
@@ -686,125 +715,32 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  superLikeBtnText: {
-    fontSize: 24,
+  passButtonText: {
+    fontSize: 28,
+    color: '#FF6B6B',
+    fontWeight: '700',
   },
-  likeBtn: {
+  likeButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#6C5CE7',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  likeBtnText: {
-    fontSize: 34,
-    color: '#FFFFFF',
-    fontWeight: '400',
-  },
-
-  // ─── Loading State ────────────────────────────────────────────────────────
-  loaderContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loaderRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loaderRingInner: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loaderText: {
-    marginTop: 20,
-    fontSize: 16,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-  },
-
-  // ─── Premium Empty State ──────────────────────────────────────────────────
-  emptyStateWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  premiumEmptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  emptyIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    fontWeight: '400',
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 28,
-  },
-  emptyRefreshButton: {
-    paddingHorizontal: 36,
-    paddingVertical: 14,
-    borderRadius: 28,
-    marginBottom: 14,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#6C5CE7',
+        shadowColor: '#8B5CF6',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOpacity: 0.35,
+        shadowRadius: 10,
       },
       android: {
         elevation: 6,
       },
     }),
   },
-  emptyRefreshText: {
+  likeButtonText: {
+    fontSize: 30,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  emptyVibesButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 1.5,
-  },
-  emptyVibesText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
 
