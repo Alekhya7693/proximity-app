@@ -5,7 +5,7 @@ import { spacing, borderRadius } from './spacing';
 import { useModeStore } from '../store/modeStore';
 
 export interface Theme {
-  colors: typeof socialColors;
+  colors: ColorPalette;
   typography: typeof typography;
   spacing: typeof spacing;
   borderRadius: typeof borderRadius;

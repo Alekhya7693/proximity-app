@@ -133,4 +133,9 @@ export const adminColors = {
   alertLow: '#3B82F6',
 } as const;
 
-export type ColorPalette = typeof socialColors;
+// Use a widened type so both social and professional palettes are assignable
+type DeepWiden<T> = {
+  [K in keyof T]: T[K] extends object ? DeepWiden<T[K]> : string;
+};
+
+export type ColorPalette = DeepWiden<typeof socialColors>;
