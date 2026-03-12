@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useModeStore } from '../../store/modeStore';
+import { showAlert } from '../../utils/alert';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ProfileDetail'>;
@@ -155,6 +156,47 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     navigation.goBack();
   };
 
+  const handleMorePress = useCallback(() => {
+    const profileName = isSocial ? MOCK_SOCIAL.displayName : MOCK_PROFESSIONAL.displayName;
+    const profileEmoji = isSocial ? MOCK_SOCIAL.emoji : MOCK_PROFESSIONAL.emoji;
+
+    showAlert('Options', undefined, [
+      {
+        text: 'Report User',
+        style: 'destructive',
+        onPress: () => {
+          navigation.navigate('ReportUser', {
+            userId: route.params.userId,
+            userName: profileName,
+            userAvatar: profileEmoji,
+          });
+        },
+      },
+      {
+        text: 'Block User',
+        style: 'destructive',
+        onPress: () => {
+          showAlert(
+            'Block User',
+            `Are you sure you want to block ${profileName}? You won't see them again.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Block',
+                style: 'destructive',
+                onPress: () => {
+                  showAlert('User Blocked', `${profileName} has been blocked.`);
+                  navigation.goBack();
+                },
+              },
+            ],
+          );
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [isSocial, navigation, route.params.userId]);
+
   // ── Social Mode Render ───────────────────────────────────────────────────
   if (isSocial) {
     const profile = MOCK_SOCIAL;
@@ -183,7 +225,7 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               >
                 <Text style={styles.navButtonText}>{'\u2190'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.navButton} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.navButton} activeOpacity={0.7} onPress={handleMorePress}>
                 <Text style={styles.navButtonText}>{'\u2022\u2022\u2022'}</Text>
               </TouchableOpacity>
             </View>
@@ -356,6 +398,7 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             <TouchableOpacity
               style={[styles.navButton, { backgroundColor: theme.colors.background }]}
               activeOpacity={0.7}
+              onPress={handleMorePress}
             >
               <Text style={[styles.navButtonText, { color: theme.colors.text }]}>
                 {'\u2022\u2022\u2022'}

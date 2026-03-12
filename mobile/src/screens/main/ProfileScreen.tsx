@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,37 @@ import { useAuthStore } from '../../store/authStore';
 import { useModeStore } from '../../store/modeStore';
 import type { MainTabScreenProps } from '../../navigation/types';
 
+// ── Static data hoisted outside component to avoid re-creation ───────────────
+
+interface StatData {
+  label: string;
+  value: string;
+  emoji: string;
+}
+
+interface ActionData {
+  label: string;
+  icon: string;
+  subtitle: string;
+  screen?: 'Notifications' | 'EditProfile' | 'PrivacySettings';
+}
+
+const STATS_DATA: StatData[] = [
+  { label: 'Matches', value: '12', emoji: '\uD83D\uDC9C' },
+  { label: 'Conversations', value: '8', emoji: '\uD83D\uDCAC' },
+  { label: 'Vibes Set', value: '24', emoji: '\u2728' },
+  { label: 'Trust Score', value: '92', emoji: '\uD83D\uDEE1\uFE0F' },
+];
+
+const ACTIONS_DATA: ActionData[] = [
+  { label: 'Edit Profile', icon: '\u270F\uFE0F', subtitle: 'Name, photo, bio, avatar', screen: 'EditProfile' as const },
+  { label: 'My Interests', icon: '\uD83C\uDFAF', subtitle: 'Update your interest tags' },
+  { label: 'Notifications', icon: '\uD83D\uDD14', subtitle: 'Match alerts, messages', screen: 'Notifications' as const },
+  { label: 'Privacy', icon: '\uD83D\uDD12', subtitle: 'Visibility and data settings', screen: 'PrivacySettings' as const },
+];
+
+// ── Component ────────────────────────────────────────────────────────────────
+
 const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) => {
   const { colors, mode } = useTheme();
   const { user } = useAuthStore();
@@ -21,22 +52,55 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
   const displayName = user?.displayName || 'UrbanFox';
   const email = user?.email || 'name@example.com';
 
+  const handleSettings = useCallback(
+    () => navigation.navigate('Settings'),
+    [navigation],
+  );
+
+  const handleActionPress = useCallback(
+    (screen?: 'Notifications' | 'EditProfile' | 'PrivacySettings') => {
+      if (screen) {
+        navigation.navigate(screen);
+      }
+    },
+    [navigation],
+  );
+
+  // Memoize gradient colors for the mode badge
+  const modeGradientColors = useMemo<[string, string]>(
+    () =>
+      mode === 'social'
+        ? ['#8B5CF6', '#EC4899']
+        : ['#0F766E', '#0284C7'],
+    [mode],
+  );
+
+  const modeBadgeLabel = useMemo(
+    () => (mode === 'social' ? '\u2728 Social' : '\uD83D\uDCBC Professional'),
+    [mode],
+  );
+
+  const avatarGradientColors = useMemo<[string, string]>(
+    () => [colors.gradient.start, colors.gradient.end],
+    [colors.gradient.start, colors.gradient.end],
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-            <Text style={styles.settingsIcon}>⚙️</Text>
+          <TouchableOpacity onPress={handleSettings}>
+            <Text style={styles.settingsIcon}>{'\u2699\uFE0F'}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={[styles.avatarCard, { backgroundColor: colors.surface }]}>
           <LinearGradient
-            colors={[colors.gradient.start, colors.gradient.end]}
+            colors={avatarGradientColors}
             style={styles.avatarGradient}
           >
-            <Text style={styles.avatarEmoji}>🦊</Text>
+            <Text style={styles.avatarEmoji}>{'\uD83E\uDD8A'}</Text>
           </LinearGradient>
           <Text style={[styles.displayName, { color: colors.text }]}>{displayName}</Text>
           <Text style={[styles.email, { color: colors.textTertiary }]}>{email}</Text>
@@ -50,31 +114,21 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>CURRENT MODE</Text>
           <TouchableOpacity style={styles.modeRow} onPress={toggleMode}>
             <LinearGradient
-              colors={mode === 'social'
-                ? ['#8B5CF6', '#EC4899']
-                : ['#0F766E', '#0284C7']
-              }
+              colors={modeGradientColors}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.modeBadge}
             >
-              <Text style={styles.modeBadgeText}>
-                {mode === 'social' ? '✨ Social' : '💼 Professional'}
-              </Text>
+              <Text style={styles.modeBadgeText}>{modeBadgeLabel}</Text>
             </LinearGradient>
-            <Text style={[styles.modeSwitch, { color: colors.primary }]}>Switch ›</Text>
+            <Text style={[styles.modeSwitch, { color: colors.primary }]}>Switch &rsaquo;</Text>
           </TouchableOpacity>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>YOUR STATS</Text>
           <View style={styles.statsGrid}>
-            {[
-              { label: 'Matches', value: '12', emoji: '💜' },
-              { label: 'Conversations', value: '8', emoji: '💬' },
-              { label: 'Vibes Set', value: '24', emoji: '✨' },
-              { label: 'Trust Score', value: '92', emoji: '🛡️' },
-            ].map((stat) => (
+            {STATS_DATA.map((stat) => (
               <View key={stat.label} style={[styles.statItem, { backgroundColor: colors.surfaceElevated }]}>
                 <Text style={styles.statEmoji}>{stat.emoji}</Text>
                 <Text style={[styles.statValue, { color: colors.text }]}>{stat.value}</Text>
@@ -86,28 +140,23 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>QUICK ACTIONS</Text>
-          {[
-            { label: 'Edit Profile', icon: '✏️', subtitle: 'Name, photo, bio, avatar' },
-            { label: 'My Interests', icon: '🎯', subtitle: 'Update your interest tags' },
-            { label: 'Notifications', icon: '🔔', subtitle: 'Match alerts, messages', screen: 'Notifications' as const },
-            { label: 'Privacy', icon: '🔒', subtitle: 'Visibility and data settings' },
-          ].map((action, i) => (
+          {ACTIONS_DATA.map((action, i) => (
             <TouchableOpacity
               key={action.label}
               style={[styles.actionRow, i < 3 && { borderBottomColor: colors.border, borderBottomWidth: 0.5 }]}
-              onPress={() => action.screen && navigation.navigate(action.screen)}
+              onPress={() => handleActionPress(action.screen)}
             >
               <Text style={styles.actionIcon}>{action.icon}</Text>
               <View style={styles.actionText}>
                 <Text style={[styles.actionLabel, { color: colors.text }]}>{action.label}</Text>
                 <Text style={[styles.actionSubtitle, { color: colors.textTertiary }]}>{action.subtitle}</Text>
               </View>
-              <Text style={[styles.chevron, { color: colors.textTertiary }]}>›</Text>
+              <Text style={[styles.chevron, { color: colors.textTertiary }]}>&rsaquo;</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -177,6 +226,7 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 16, fontWeight: '600' },
   actionSubtitle: { fontSize: 13, marginTop: 2 },
   chevron: { fontSize: 24, fontWeight: '300' },
+  bottomSpacer: { height: 40 },
 });
 
 export default ProfileScreen;

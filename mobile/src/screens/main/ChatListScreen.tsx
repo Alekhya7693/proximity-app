@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
+import { showAlert } from '../../utils/alert';
 import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'ChatList'>;
@@ -112,152 +113,50 @@ const MOCK_CHATS: ChatItem[] = [
   },
 ];
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Row height constant for getItemLayout ────────────────────────────────────
+const CHAT_ROW_HEIGHT = 82; // padding (14*2) + avatar (54) = 82
+const SEPARATOR_HEIGHT = 4;
 
-const ChatListScreen: React.FC<Props> = ({ navigation }) => {
-  const theme = useTheme();
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+// ── Memoized Separator ───────────────────────────────────────────────────────
+const ItemSeparator = React.memo(() => <View style={styles.separator} />);
+ItemSeparator.displayName = 'ItemSeparator';
 
-  const unreadCount = MOCK_CHATS.filter((c) => c.unreadCount > 0).length;
+// ── Memoized Chat Row ────────────────────────────────────────────────────────
 
-  const filteredChats = MOCK_CHATS.filter((chat) => {
-    if (activeFilter === 'unread') return chat.unreadCount > 0;
-    if (activeFilter === 'active') return chat.isActive;
-    return true;
-  });
+interface ChatRowProps {
+  item: ChatItem;
+  onPress: (chat: ChatItem) => void;
+  surfaceColor: string;
+  primaryColor: string;
+  textColor: string;
+  secondaryColor: string;
+  tertiaryColor: string;
+}
 
-  // Find the TidalWave chat for the warning banner
-  const expiringChat = MOCK_CHATS.find(
-    (c) => c.displayName === 'TidalWave' && c.isExpired,
-  );
-
-  const handleChatPress = (chat: ChatItem) => {
-    (navigation as any).navigate('ChatDetail', {
-      matchId: chat.matchId,
-      recipientName: chat.displayName,
-      recipientAvatar: chat.emoji,
-      isActive: chat.isActive,
-    });
-  };
-
-  // ── Filter Tabs ─────────────────────────────────────────────────────────
-
-  const renderFilters = () => (
-    <View
-      style={[
-        styles.filterRow,
-        { borderBottomColor: theme.colors.borderLight },
-      ]}
-    >
-      {/* All */}
-      <TouchableOpacity
-        style={[
-          styles.filterTab,
-          activeFilter === 'all' && {
-            borderBottomColor: theme.colors.primary,
-            borderBottomWidth: 2,
-          },
-        ]}
-        onPress={() => setActiveFilter('all')}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[
-            styles.filterTabText,
-            {
-              color:
-                activeFilter === 'all'
-                  ? theme.colors.primary
-                  : theme.colors.textTertiary,
-              fontWeight: activeFilter === 'all' ? '700' : '500',
-            },
-          ]}
-        >
-          All
-        </Text>
-      </TouchableOpacity>
-
-      {/* Unread */}
-      <TouchableOpacity
-        style={[
-          styles.filterTab,
-          activeFilter === 'unread' && {
-            borderBottomColor: theme.colors.primary,
-            borderBottomWidth: 2,
-          },
-        ]}
-        onPress={() => setActiveFilter('unread')}
-        activeOpacity={0.7}
-      >
-        <View style={styles.filterTabInner}>
-          <Text
-            style={[
-              styles.filterTabText,
-              {
-                color:
-                  activeFilter === 'unread'
-                    ? theme.colors.primary
-                    : theme.colors.textTertiary,
-                fontWeight: activeFilter === 'unread' ? '700' : '500',
-              },
-            ]}
-          >
-            Unread
-          </Text>
-          {unreadCount > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{unreadCount}</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {/* Active */}
-      <TouchableOpacity
-        style={[
-          styles.filterTab,
-          activeFilter === 'active' && {
-            borderBottomColor: theme.colors.primary,
-            borderBottomWidth: 2,
-          },
-        ]}
-        onPress={() => setActiveFilter('active')}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[
-            styles.filterTabText,
-            {
-              color:
-                activeFilter === 'active'
-                  ? theme.colors.primary
-                  : theme.colors.textTertiary,
-              fontWeight: activeFilter === 'active' ? '700' : '500',
-            },
-          ]}
-        >
-          Active
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // ── Chat Item ───────────────────────────────────────────────────────────
-
-  const renderChatItem = ({ item }: { item: ChatItem }) => {
+const ChatRow = React.memo<ChatRowProps>(
+  ({
+    item,
+    onPress,
+    surfaceColor,
+    primaryColor,
+    textColor,
+    secondaryColor,
+    tertiaryColor,
+  }) => {
     const isExpired = item.isExpired;
     const hasUnread = item.unreadCount > 0;
+    const handlePress = useCallback(() => onPress(item), [onPress, item]);
 
     return (
       <TouchableOpacity
         style={[
           styles.chatItem,
           {
-            backgroundColor: theme.colors.surfaceElevated,
+            backgroundColor: surfaceColor,
             opacity: isExpired ? 0.5 : 1,
           },
         ]}
-        onPress={() => handleChatPress(item)}
+        onPress={handlePress}
         activeOpacity={0.85}
         disabled={isExpired}
       >
@@ -268,8 +167,8 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
               styles.avatar,
               {
                 backgroundColor: isExpired
-                  ? theme.colors.textTertiary + '15'
-                  : theme.colors.primary + '10',
+                  ? tertiaryColor + '15'
+                  : primaryColor + '10',
               },
             ]}
           >
@@ -290,7 +189,7 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
             <Text
               style={[
                 styles.chatName,
-                { color: isExpired ? theme.colors.textTertiary : theme.colors.text },
+                { color: isExpired ? tertiaryColor : textColor },
               ]}
               numberOfLines={1}
             >
@@ -300,9 +199,7 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
               style={[
                 styles.chatTime,
                 {
-                  color: hasUnread
-                    ? theme.colors.primary
-                    : theme.colors.textTertiary,
+                  color: hasUnread ? primaryColor : tertiaryColor,
                   fontWeight: hasUnread ? '600' : '400',
                 },
               ]}
@@ -316,10 +213,10 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
                 styles.chatMessage,
                 {
                   color: isExpired
-                    ? theme.colors.textTertiary
+                    ? tertiaryColor
                     : hasUnread
-                      ? theme.colors.text
-                      : theme.colors.textSecondary,
+                      ? textColor
+                      : secondaryColor,
                   fontWeight: hasUnread ? '600' : '400',
                   fontStyle: isExpired ? 'italic' : 'normal',
                 },
@@ -332,7 +229,7 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
               <View
                 style={[
                   styles.unreadBadge,
-                  { backgroundColor: theme.colors.primary },
+                  { backgroundColor: primaryColor },
                 ]}
               >
                 <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
@@ -342,7 +239,198 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </TouchableOpacity>
     );
-  };
+  },
+  (prev, next) =>
+    prev.item.id === next.item.id &&
+    prev.item.unreadCount === next.item.unreadCount &&
+    prev.item.isOnline === next.item.isOnline &&
+    prev.item.lastMessage === next.item.lastMessage &&
+    prev.surfaceColor === next.surfaceColor &&
+    prev.primaryColor === next.primaryColor,
+);
+
+ChatRow.displayName = 'ChatRow';
+
+// ── Component ────────────────────────────────────────────────────────────────
+
+const ChatListScreen: React.FC<Props> = ({ navigation }) => {
+  const theme = useTheme();
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+
+  const unreadCount = useMemo(
+    () => MOCK_CHATS.filter((c) => c.unreadCount > 0).length,
+    [],
+  );
+
+  const filteredChats = useMemo(() => {
+    if (activeFilter === 'unread') return MOCK_CHATS.filter((c) => c.unreadCount > 0);
+    if (activeFilter === 'active') return MOCK_CHATS.filter((c) => c.isActive);
+    return MOCK_CHATS;
+  }, [activeFilter]);
+
+  // Find the TidalWave chat for the warning banner
+  const expiringChat = useMemo(
+    () => MOCK_CHATS.find((c) => c.displayName === 'TidalWave' && c.isExpired),
+    [],
+  );
+
+  const handleChatPress = useCallback(
+    (chat: ChatItem) => {
+      (navigation as any).navigate('ChatDetail', {
+        matchId: chat.matchId,
+        recipientName: chat.displayName,
+        recipientAvatar: chat.emoji,
+        isActive: chat.isActive,
+      });
+    },
+    [navigation],
+  );
+
+  const handleComposePress = useCallback(
+    () =>
+      showAlert(
+        'Start a Conversation',
+        'Start a new conversation by matching with someone on the Discover tab.',
+      ),
+    [],
+  );
+
+  const handleFilterAll = useCallback(() => setActiveFilter('all'), []);
+  const handleFilterUnread = useCallback(() => setActiveFilter('unread'), []);
+  const handleFilterActive = useCallback(() => setActiveFilter('active'), []);
+
+  // ── Filter Tabs ─────────────────────────────────────────────────────────
+
+  const renderFilters = useCallback(
+    () => (
+      <View
+        style={[
+          styles.filterRow,
+          { borderBottomColor: theme.colors.borderLight },
+        ]}
+      >
+        {/* All */}
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            activeFilter === 'all' && {
+              borderBottomColor: theme.colors.primary,
+              borderBottomWidth: 2,
+            },
+          ]}
+          onPress={handleFilterAll}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.filterTabText,
+              {
+                color:
+                  activeFilter === 'all'
+                    ? theme.colors.primary
+                    : theme.colors.textTertiary,
+                fontWeight: activeFilter === 'all' ? '700' : '500',
+              },
+            ]}
+          >
+            All
+          </Text>
+        </TouchableOpacity>
+
+        {/* Unread */}
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            activeFilter === 'unread' && {
+              borderBottomColor: theme.colors.primary,
+              borderBottomWidth: 2,
+            },
+          ]}
+          onPress={handleFilterUnread}
+          activeOpacity={0.7}
+        >
+          <View style={styles.filterTabInner}>
+            <Text
+              style={[
+                styles.filterTabText,
+                {
+                  color:
+                    activeFilter === 'unread'
+                      ? theme.colors.primary
+                      : theme.colors.textTertiary,
+                  fontWeight: activeFilter === 'unread' ? '700' : '500',
+                },
+              ]}
+            >
+              Unread
+            </Text>
+            {unreadCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {/* Active */}
+        <TouchableOpacity
+          style={[
+            styles.filterTab,
+            activeFilter === 'active' && {
+              borderBottomColor: theme.colors.primary,
+              borderBottomWidth: 2,
+            },
+          ]}
+          onPress={handleFilterActive}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.filterTabText,
+              {
+                color:
+                  activeFilter === 'active'
+                    ? theme.colors.primary
+                    : theme.colors.textTertiary,
+                fontWeight: activeFilter === 'active' ? '700' : '500',
+              },
+            ]}
+          >
+            Active
+          </Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    [activeFilter, theme.colors, unreadCount, handleFilterAll, handleFilterUnread, handleFilterActive],
+  );
+
+  // ── Chat Item Render ──────────────────────────────────────────────────────
+
+  const renderChatItem = useCallback(
+    ({ item }: { item: ChatItem }) => (
+      <ChatRow
+        item={item}
+        onPress={handleChatPress}
+        surfaceColor={theme.colors.surfaceElevated}
+        primaryColor={theme.colors.primary}
+        textColor={theme.colors.text}
+        secondaryColor={theme.colors.textSecondary}
+        tertiaryColor={theme.colors.textTertiary}
+      />
+    ),
+    [handleChatPress, theme.colors],
+  );
+
+  const keyExtractor = useCallback((item: ChatItem) => item.id, []);
+
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<ChatItem> | null | undefined, index: number) => ({
+      length: CHAT_ROW_HEIGHT,
+      offset: (CHAT_ROW_HEIGHT + SEPARATOR_HEIGHT) * index,
+      index,
+    }),
+    [],
+  );
 
   return (
     <SafeAreaView
@@ -357,6 +445,7 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={[styles.composeButton, { backgroundColor: theme.colors.surface }]}
           activeOpacity={0.7}
+          onPress={handleComposePress}
         >
           <Text style={styles.composeIcon}>{'\u270F\uFE0F'}</Text>
         </TouchableOpacity>
@@ -369,10 +458,15 @@ const ChatListScreen: React.FC<Props> = ({ navigation }) => {
       <FlatList
         data={filteredChats}
         renderItem={renderChatItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={ItemSeparator}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={6}
       />
 
       {/* Warning Banner */}

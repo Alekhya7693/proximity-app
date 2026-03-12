@@ -94,19 +94,19 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       icon: '\uD83D\uDC64',
       title: 'Edit Profile',
       subtitle: 'Name, photo, bio, avatar',
-      onPress: () => {},
+      onPress: () => navigation.navigate('EditProfile'),
     },
     {
       icon: '\uD83D\uDD12',
       title: 'Change Password',
       subtitle: 'Update your login credentials',
-      onPress: () => {},
+      onPress: () => navigation.navigate('ChangePassword'),
     },
     {
       icon: '\u2709\uFE0F',
       title: 'Email Address',
       subtitle: user?.email ?? 'user@email.com',
-      onPress: () => {},
+      onPress: () => navigation.navigate('EmailSettings'),
     },
   ];
 
@@ -115,13 +115,13 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       icon: '\uD83D\uDC9C',
       title: 'Social Preferences',
       subtitle: 'Mode specific interests & filters',
-      onPress: () => {},
+      onPress: () => navigation.navigate('SocialPrefsSettings'),
     },
     {
       icon: '\uD83D\uDCBC',
       title: 'Professional Preferences',
       subtitle: 'Networking & mentorship settings',
-      onPress: () => {},
+      onPress: () => navigation.navigate('ProfessionalPrefsSettings'),
     },
     {
       icon: '\uD83D\uDCCD',
@@ -136,13 +136,13 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       icon: '\uD83D\uDEAB',
       title: 'Blocked Users',
       subtitle: 'Manage blocked profiles',
-      onPress: () => {},
+      onPress: () => navigation.navigate('BlockedUsers'),
     },
     {
       icon: '\uD83D\uDEE1\uFE0F',
       title: 'Privacy Settings',
       subtitle: 'Location visibility & data',
-      onPress: () => {},
+      onPress: () => navigation.navigate('PrivacySettings'),
     },
     {
       icon: '\uD83D\uDD14',
@@ -157,19 +157,19 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       icon: '\u2753',
       title: 'Help Center',
       subtitle: 'FAQs and guides',
-      onPress: () => {},
+      onPress: () => navigation.navigate('HelpCenter'),
     },
     {
       icon: '\uD83D\uDCE3',
       title: 'Report a Problem',
       subtitle: 'Let us know about issues',
-      onPress: () => {},
+      onPress: () => navigation.navigate('ReportProblem'),
     },
     {
       icon: '\uD83D\uDCC4',
       title: 'Terms & Privacy',
       subtitle: 'Legal information',
-      onPress: () => {},
+      onPress: () => navigation.navigate('TermsPrivacy'),
     },
   ];
 

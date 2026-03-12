@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -53,195 +53,266 @@ const ALL_MATCHES: MatchItem[] = [
   { id: 'm7', displayName: 'EchoBlaze', age: 28, emoji: '\uD83D\uDD25', compatibility: 76, timeAgo: '1d ago', isChatting: false },
 ];
 
+// ── Row height constant for getItemLayout ────────────────────────────────────
+const MATCH_ROW_HEIGHT = 80; // row padding (14*2) + avatar (52) = 80
+const SEPARATOR_HEIGHT = 8;
+
+// ── Memoized Separator ───────────────────────────────────────────────────────
+const ItemSeparator = React.memo(() => <View style={styles.separator} />);
+ItemSeparator.displayName = 'ItemSeparator';
+
+// ── Memoized Match Row ───────────────────────────────────────────────────────
+
+interface MatchRowProps {
+  item: MatchItem;
+  onPress: (match: MatchItem) => void;
+  surfaceColor: string;
+  primaryColor: string;
+  textColor: string;
+  tertiaryColor: string;
+  gradientStart: string;
+  gradientEnd: string;
+}
+
+const MatchRow = React.memo<MatchRowProps>(
+  ({
+    item,
+    onPress,
+    surfaceColor,
+    primaryColor,
+    textColor,
+    tertiaryColor,
+    gradientStart,
+    gradientEnd,
+  }) => {
+    const handlePress = useCallback(() => onPress(item), [onPress, item]);
+
+    return (
+      <TouchableOpacity
+        style={[styles.matchRow, { backgroundColor: surfaceColor }]}
+        onPress={handlePress}
+        activeOpacity={0.85}
+      >
+        {/* Avatar */}
+        <View
+          style={[
+            styles.matchAvatar,
+            { backgroundColor: primaryColor + '10' },
+          ]}
+        >
+          <Text style={styles.matchEmoji}>{item.emoji}</Text>
+        </View>
+
+        {/* Info */}
+        <View style={styles.matchInfo}>
+          <View style={styles.matchNameRow}>
+            <Text style={[styles.matchName, { color: textColor }]}>
+              {item.displayName}, {item.age}
+            </Text>
+            <View
+              style={[
+                styles.matchPercent,
+                { backgroundColor: primaryColor + '15' },
+              ]}
+            >
+              <Text
+                style={[styles.matchPercentText, { color: primaryColor }]}
+              >
+                {item.compatibility}%
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.matchTimeAgo, { color: tertiaryColor }]}>
+            {item.timeAgo}
+          </Text>
+        </View>
+
+        {/* Action Button */}
+        {item.isChatting ? (
+          <LinearGradient
+            colors={[gradientStart, gradientEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.chatButton}
+          >
+            <Text style={styles.chatButtonText}>Chat</Text>
+          </LinearGradient>
+        ) : (
+          <View
+            style={[styles.sayHiOutlineButton, { borderColor: primaryColor }]}
+          >
+            <Text style={[styles.sayHiOutlineText, { color: primaryColor }]}>
+              Say Hi
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  },
+  (prev, next) =>
+    prev.item.id === next.item.id &&
+    prev.item.isChatting === next.item.isChatting &&
+    prev.surfaceColor === next.surfaceColor &&
+    prev.primaryColor === next.primaryColor,
+);
+
+MatchRow.displayName = 'MatchRow';
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 const MatchesScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
 
-  const handleMatchPress = (match: MatchItem) => {
-    if (match.isChatting) {
-      (navigation as any).navigate('ChatList', {
-        screen: 'ChatDetail',
-        params: {
+  const handleMatchPress = useCallback(
+    (match: MatchItem) => {
+      if (match.isChatting) {
+        (navigation as any).navigate('ChatList', {
+          screen: 'ChatDetail',
+          params: {
+            matchId: match.id,
+            recipientName: match.displayName,
+            recipientAvatar: match.emoji,
+            isActive: true,
+          },
+        });
+      } else {
+        navigation.navigate('MatchPrompt', {
           matchId: match.id,
-          recipientName: match.displayName,
-          recipientAvatar: match.emoji,
-          isActive: true,
-        },
-      });
-    } else {
-      navigation.navigate('MatchPrompt', {
-        matchId: match.id,
-        userName: match.displayName,
-        userAvatar: match.emoji,
-        distance: 80,
-        compatibility: match.compatibility,
-      });
-    }
-  };
+          userName: match.displayName,
+          userAvatar: match.emoji,
+          distance: 80,
+          compatibility: match.compatibility,
+        });
+      }
+    },
+    [navigation],
+  );
 
-  const handleWaitingPress = (waiting: WaitingMatch) => {
-    navigation.navigate('MatchPrompt', {
-      matchId: waiting.id,
-      userName: waiting.displayName,
-      userAvatar: waiting.emoji,
-      distance: 120,
-      compatibility: 85,
-    });
-  };
+  const handleWaitingPress = useCallback(
+    (waiting: WaitingMatch) => {
+      navigation.navigate('MatchPrompt', {
+        matchId: waiting.id,
+        userName: waiting.displayName,
+        userAvatar: waiting.emoji,
+        distance: 120,
+        compatibility: 85,
+      });
+    },
+    [navigation],
+  );
 
   // ── Waiting Avatar Item ─────────────────────────────────────────────────
 
-  const renderWaitingItem = ({ item }: { item: WaitingMatch }) => (
-    <TouchableOpacity
-      style={styles.waitingItem}
-      onPress={() => handleWaitingPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.waitingAvatarContainer}>
-        <View
-          style={[
-            styles.waitingAvatar,
-            {
-              backgroundColor: theme.colors.primary + '15',
-              borderColor: theme.colors.primary + '40',
-            },
-          ]}
-        >
-          <Text style={styles.waitingEmoji}>{item.emoji}</Text>
-        </View>
-        {item.hasNotification && (
-          <View style={styles.notificationDot} />
-        )}
-      </View>
-      <Text
-        style={[styles.waitingName, { color: theme.colors.text }]}
-        numberOfLines={1}
+  const renderWaitingItem = useCallback(
+    ({ item }: { item: WaitingMatch }) => (
+      <TouchableOpacity
+        style={styles.waitingItem}
+        onPress={() => handleWaitingPress(item)}
+        activeOpacity={0.7}
       >
-        {item.displayName}
-      </Text>
-      <Text
-        style={[styles.waitingTime, { color: theme.colors.textTertiary }]}
-        numberOfLines={1}
-      >
-        {item.timeAgo}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  // ── Match Row Item ──────────────────────────────────────────────────────
-
-  const renderMatchItem = ({ item }: { item: MatchItem }) => (
-    <TouchableOpacity
-      style={[
-        styles.matchRow,
-        { backgroundColor: theme.colors.surfaceElevated },
-      ]}
-      onPress={() => handleMatchPress(item)}
-      activeOpacity={0.85}
-    >
-      {/* Avatar */}
-      <View
-        style={[
-          styles.matchAvatar,
-          { backgroundColor: theme.colors.primary + '10' },
-        ]}
-      >
-        <Text style={styles.matchEmoji}>{item.emoji}</Text>
-      </View>
-
-      {/* Info */}
-      <View style={styles.matchInfo}>
-        <View style={styles.matchNameRow}>
-          <Text style={[styles.matchName, { color: theme.colors.text }]}>
-            {item.displayName}, {item.age}
-          </Text>
+        <View style={styles.waitingAvatarContainer}>
           <View
             style={[
-              styles.matchPercent,
-              { backgroundColor: theme.colors.primary + '15' },
+              styles.waitingAvatar,
+              {
+                backgroundColor: theme.colors.primary + '15',
+                borderColor: theme.colors.primary + '40',
+              },
             ]}
           >
-            <Text
-              style={[
-                styles.matchPercentText,
-                { color: theme.colors.primary },
-              ]}
-            >
-              {item.compatibility}%
-            </Text>
+            <Text style={styles.waitingEmoji}>{item.emoji}</Text>
           </View>
+          {item.hasNotification && (
+            <View style={styles.notificationDot} />
+          )}
         </View>
         <Text
-          style={[styles.matchTimeAgo, { color: theme.colors.textTertiary }]}
+          style={[styles.waitingName, { color: theme.colors.text }]}
+          numberOfLines={1}
+        >
+          {item.displayName}
+        </Text>
+        <Text
+          style={[styles.waitingTime, { color: theme.colors.textTertiary }]}
+          numberOfLines={1}
         >
           {item.timeAgo}
         </Text>
-      </View>
-
-      {/* Action Button */}
-      {item.isChatting ? (
-        <LinearGradient
-          colors={[theme.colors.gradient.start, theme.colors.gradient.end]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.chatButton}
-        >
-          <Text style={styles.chatButtonText}>Chat</Text>
-        </LinearGradient>
-      ) : (
-        <View
-          style={[
-            styles.sayHiOutlineButton,
-            { borderColor: theme.colors.primary },
-          ]}
-        >
-          <Text
-            style={[
-              styles.sayHiOutlineText,
-              { color: theme.colors.primary },
-            ]}
-          >
-            Say Hi
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
+      </TouchableOpacity>
+    ),
+    [handleWaitingPress, theme.colors.primary, theme.colors.text, theme.colors.textTertiary],
   );
 
-  const renderListHeader = () => (
-    <View>
-      {/* Waiting to Say Hi Section */}
-      <View style={styles.sectionHeader}>
-        <Text
-          style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
-        >
-          WAITING TO SAY HI
-        </Text>
-      </View>
+  // ── Match Row Render ───────────────────────────────────────────────────
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.waitingScroll}
-        style={styles.waitingContainer}
-      >
-        {WAITING_MATCHES.map((item) => (
-          <View key={item.id}>
-            {renderWaitingItem({ item })}
-          </View>
-        ))}
-      </ScrollView>
+  const renderMatchItem = useCallback(
+    ({ item }: { item: MatchItem }) => (
+      <MatchRow
+        item={item}
+        onPress={handleMatchPress}
+        surfaceColor={theme.colors.surfaceElevated}
+        primaryColor={theme.colors.primary}
+        textColor={theme.colors.text}
+        tertiaryColor={theme.colors.textTertiary}
+        gradientStart={theme.colors.gradient.start}
+        gradientEnd={theme.colors.gradient.end}
+      />
+    ),
+    [handleMatchPress, theme.colors],
+  );
 
-      {/* All Matches Label */}
-      <View style={[styles.sectionHeader, { marginTop: 8 }]}>
-        <Text
-          style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
+  const keyExtractor = useCallback((item: MatchItem) => item.id, []);
+
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<MatchItem> | null | undefined, index: number) => ({
+      length: MATCH_ROW_HEIGHT,
+      offset: (MATCH_ROW_HEIGHT + SEPARATOR_HEIGHT) * index,
+      index,
+    }),
+    [],
+  );
+
+  const totalBadgeText = useMemo(
+    () => `${ALL_MATCHES.length} total`,
+    [],
+  );
+
+  const renderListHeader = useCallback(
+    () => (
+      <View>
+        {/* Waiting to Say Hi Section */}
+        <View style={styles.sectionHeader}>
+          <Text
+            style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
+          >
+            WAITING TO SAY HI
+          </Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.waitingScroll}
+          style={styles.waitingContainer}
         >
-          ALL MATCHES
-        </Text>
+          {WAITING_MATCHES.map((item) => (
+            <View key={item.id}>
+              {renderWaitingItem({ item })}
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* All Matches Label */}
+        <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+          <Text
+            style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
+          >
+            ALL MATCHES
+          </Text>
+        </View>
       </View>
-    </View>
+    ),
+    [theme.colors.textTertiary, renderWaitingItem],
   );
 
   return (
@@ -263,7 +334,7 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
           <Text
             style={[styles.totalBadgeText, { color: theme.colors.primary }]}
           >
-            {ALL_MATCHES.length} total
+            {totalBadgeText}
           </Text>
         </View>
       </View>
@@ -272,11 +343,16 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
       <FlatList
         data={ALL_MATCHES}
         renderItem={renderMatchItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={renderListHeader}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={ItemSeparator}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={7}
       />
     </SafeAreaView>
   );

@@ -48,6 +48,17 @@ export type RootStackParamList = {
   Filters: undefined;
   ReportUser: { userId: string; userName: string; userAvatar: string };
   Notifications: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+  EmailSettings: undefined;
+  SocialPrefsSettings: undefined;
+  ProfessionalPrefsSettings: undefined;
+  BlockedUsers: undefined;
+  PrivacySettings: undefined;
+  HelpCenter: undefined;
+  ReportProblem: undefined;
+  TermsPrivacy: undefined;
+  SetVibe: { preSelectedVibe?: string } | undefined;
   AdminDashboard: undefined;
   AdminReportQueue: undefined;
   AdminUserDetail: { userId: string };

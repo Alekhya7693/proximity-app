@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -157,10 +157,15 @@ const NotificationRow: React.FC<NotificationRowProps> = ({
 // ===========================================================================
 const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
+  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
 
-  const handleMarkAllRead = () => {
-    // TODO: Mark all notifications as read
-  };
+  const hasUnread = notifications.some((n) => n.unread);
+
+  const handleMarkAllRead = useCallback(() => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.unread ? { ...n, unread: false } : n)),
+    );
+  }, []);
 
   const renderItem = ({ item, index }: { item: NotificationItem; index: number }) => (
     <NotificationRow
@@ -199,8 +204,21 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
           Notifications
         </Text>
 
-        <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7}>
-          <Text style={[styles.markReadText, { color: theme.colors.primary }]}>
+        <TouchableOpacity
+          onPress={handleMarkAllRead}
+          activeOpacity={0.7}
+          disabled={!hasUnread}
+        >
+          <Text
+            style={[
+              styles.markReadText,
+              {
+                color: hasUnread
+                  ? theme.colors.primary
+                  : theme.colors.textTertiary,
+              },
+            ]}
+          >
             Mark all read
           </Text>
         </TouchableOpacity>
@@ -208,11 +226,12 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* ---- List ---- */}
       <FlatList
-        data={MOCK_NOTIFICATIONS}
+        data={notifications}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        extraData={notifications}
       />
     </SafeAreaView>
   );

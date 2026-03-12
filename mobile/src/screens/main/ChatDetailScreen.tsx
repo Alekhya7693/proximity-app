@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,13 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
-import type { ChatStackScreenProps } from '../../navigation/types';
+import { showAlert } from '../../utils/alert';
+import type { ChatStackScreenProps, RootStackParamList } from '../../navigation/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Props = ChatStackScreenProps<'ChatDetail'>;
 
@@ -90,12 +93,61 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   const handleSend = () => {
     const text = inputText.trim();
     if (!text) return;
     setInputText('');
     // In production, this would send via API/socket
   };
+
+  const handleMorePress = useCallback(() => {
+    showAlert('Options', undefined, [
+      {
+        text: 'View Profile',
+        onPress: () => {
+          rootNavigation.navigate('ProfileDetail', {
+            userId: matchId,
+            mode: 'social',
+          });
+        },
+      },
+      {
+        text: 'Report User',
+        style: 'destructive',
+        onPress: () => {
+          rootNavigation.navigate('ReportUser', {
+            userId: matchId,
+            userName: recipientName,
+            userAvatar: recipientAvatar,
+          });
+        },
+      },
+      {
+        text: 'Block User',
+        style: 'destructive',
+        onPress: () => {
+          showAlert(
+            'Block User',
+            `Are you sure you want to block ${recipientName}? You won't see them again.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Block',
+                style: 'destructive',
+                onPress: () => {
+                  showAlert('User Blocked', `${recipientName} has been blocked.`);
+                  navigation.goBack();
+                },
+              },
+            ],
+          );
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [matchId, recipientName, recipientAvatar, rootNavigation, navigation]);
 
   // ── Render Message ──────────────────────────────────────────────────────
 
@@ -217,7 +269,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.moreButton} activeOpacity={0.7} onPress={handleMorePress}>
               <Text style={[styles.moreText, { color: theme.colors.textTertiary }]}>
                 {'\u2022\u2022\u2022'}
               </Text>
@@ -356,7 +408,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7} onPress={handleMorePress}>
           <Text style={[styles.moreText, { color: theme.colors.textTertiary }]}>
             {'\u2022\u2022\u2022'}
           </Text>

@@ -11,10 +11,11 @@ import { socketService } from './services/socket';
 import { locationService } from './services/location';
 import { notificationService } from './services/notifications';
 import RootNavigator from './navigation/RootNavigator';
+import ErrorBoundary from './components/ErrorBoundary';
 import { socialColors } from './theme/colors';
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isInitialized, initialize } = useAuthStore();
+  const { isAuthenticated, initialize } = useAuthStore();
   const initializeMode = useModeStore((s) => s.initialize);
   const mode = useModeStore((s) => s.mode);
   const [isReady, setIsReady] = useState(false);
@@ -56,7 +57,11 @@ const AppContent: React.FC = () => {
     };
   }, [isAuthenticated]);
 
-  if (!isReady || !isInitialized) {
+  // Only gate on isReady — it is set in the finally block AFTER
+  // initialize() has already set isInitialized:true inside the store.
+  // Using both caused a race condition where the two state sources
+  // could resolve in different render cycles, stalling the loading screen.
+  if (!isReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={socialColors.primary} />
@@ -75,11 +80,13 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <GestureHandlerRootView style={styles.flex}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AppContent />
-        </ThemeProvider>
-      </SafeAreaProvider>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 };
