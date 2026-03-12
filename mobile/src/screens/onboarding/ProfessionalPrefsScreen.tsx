@@ -13,8 +13,8 @@ import type { OnboardingScreenProps } from '../../navigation/types';
 
 type Props = OnboardingScreenProps<'ProfessionalPrefs'>;
 
-const TOTAL_STEPS = 5;
-const CURRENT_STEP = 4;
+const TOTAL_STEPS = 6;
+const CURRENT_STEP = 5;
 
 const professionalColors = {
   background: '#F8FAFC',

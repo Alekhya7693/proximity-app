@@ -8,12 +8,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuthStore } from '../../store/authStore';
 import type { OnboardingScreenProps } from '../../navigation/types';
 
 type Props = OnboardingScreenProps<'AvatarSetup'>;
 
-const TOTAL_STEPS = 5;
-const CURRENT_STEP = 5;
+const TOTAL_STEPS = 6;
+const CURRENT_STEP = 6;
 
 const socialColors = {
   background: '#0F0A1A',
@@ -98,13 +99,15 @@ const ProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({
 );
 
 const AvatarSetupScreen: React.FC<Props> = ({ navigation }) => {
+  const { updateUser } = useAuthStore();
   const [selectedAvatar, setSelectedAvatar] = useState<string>('urban-fox');
 
   const currentAvatar = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)!;
 
-  const handleStartExploring = () => {
-    // Navigate to main app after onboarding completes
-    navigation.getParent()?.navigate('Main');
+  const handleStartExploring = async () => {
+    // Mark onboarding as complete in auth store
+    updateUser({ isOnboardingComplete: true, displayName: currentAvatar.name });
+    // The RootNavigator will auto-switch to Main since isOnboardingComplete is now true
   };
 
   return (

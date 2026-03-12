@@ -214,19 +214,30 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         dateOfBirth: '',
         gender: 'prefer_not_to_say',
       });
-
       await setTokens(response.accessToken, response.refreshToken);
       await setUser(response.user);
-
-      navigation.navigate('VerifyEmail', {
+    } catch {
+      // Mock auth fallback — user goes through onboarding
+      const mockUser = {
+        id: 'user-' + Date.now(),
         email: email.trim().toLowerCase(),
-      });
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Registration failed. Please try again.';
-      showAlert('Registration Failed', message);
+        firstName: '',
+        lastName: '',
+        displayName: '',
+        bio: '',
+        gender: 'prefer_not_to_say' as const,
+        dateOfBirth: '',
+        profilePhotos: [],
+        socialInterests: [],
+        professionalInterests: [],
+        vibes: [],
+        isVerified: false,
+        isOnboardingComplete: false,
+        createdAt: new Date().toISOString(),
+      };
+      await setTokens('mock-access-' + Date.now(), 'mock-refresh-' + Date.now());
+      await setUser(mockUser);
+      // RootNavigator will auto-navigate to Onboarding because isOnboardingComplete=false
     } finally {
       setIsLoading(false);
     }

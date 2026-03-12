@@ -15,7 +15,7 @@ type Props = OnboardingScreenProps<'ModeSelect'>;
 
 type ModeOption = 'social' | 'professional';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 const CURRENT_STEP = 2;
 
 const socialColors = {
