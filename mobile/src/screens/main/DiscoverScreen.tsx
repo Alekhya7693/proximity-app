@@ -16,7 +16,7 @@ import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'Discover'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -34,69 +34,21 @@ interface MockProfile {
 }
 
 const SOCIAL_PROFILES: MockProfile[] = [
-  {
-    id: '1',
-    displayName: 'UrbanFox',
-    age: 27,
-    emoji: '\uD83E\uDD8A',
-    distance: 80,
-    compatibility: 94,
-    tags: ['Coffee', 'Photography', 'Hiking', 'Live Music'],
-  },
-  {
-    id: '2',
-    displayName: 'NeonDrift',
-    age: 24,
-    emoji: '\uD83C\uDF1F',
-    distance: 120,
-    compatibility: 87,
-    tags: ['Art', 'Gaming', 'Anime', 'Cooking'],
-  },
-  {
-    id: '3',
-    displayName: 'WildPetal',
-    age: 29,
-    emoji: '\uD83C\uDF3A',
-    distance: 45,
-    compatibility: 91,
-    tags: ['Yoga', 'Reading', 'Travel', 'Wine'],
-  },
+  { id: '1', displayName: 'UrbanFox', age: 27, emoji: '\uD83E\uDD8A', distance: 80, compatibility: 94, tags: ['Coffee', 'Photography', 'Hiking', 'Live Music'] },
+  { id: '2', displayName: 'NeonDrift', age: 24, emoji: '\uD83C\uDF1F', distance: 120, compatibility: 87, tags: ['Art', 'Gaming', 'Anime', 'Cooking'] },
+  { id: '3', displayName: 'WildPetal', age: 29, emoji: '\uD83C\uDF3A', distance: 45, compatibility: 91, tags: ['Yoga', 'Reading', 'Travel', 'Wine'] },
+  { id: '7', displayName: 'LunarMist', age: 25, emoji: '\uD83C\uDF19', distance: 95, compatibility: 89, tags: ['Music', 'Dancing', 'Festivals', 'Vegan'] },
+  { id: '8', displayName: 'EmberSpark', age: 30, emoji: '\uD83D\uDD25', distance: 60, compatibility: 92, tags: ['Fitness', 'Outdoor', 'Dogs', 'Brunch'] },
+  { id: '9', displayName: 'TidalWave', age: 26, emoji: '\uD83C\uDF0A', distance: 110, compatibility: 85, tags: ['Surfing', 'Beach', 'Meditation', 'Travel'] },
 ];
 
 const PROFESSIONAL_PROFILES: MockProfile[] = [
-  {
-    id: '4',
-    displayName: 'AlexChen',
-    emoji: '\uD83D\uDCBC',
-    age: 31,
-    distance: 150,
-    compatibility: 91,
-    role: 'Product Manager',
-    company: 'Stripe',
-    tags: ['Fintech', 'Product Strategy', 'SaaS'],
-  },
-  {
-    id: '5',
-    displayName: 'MayaPatel',
-    emoji: '\uD83D\uDE80',
-    age: 28,
-    distance: 200,
-    compatibility: 88,
-    role: 'Senior Engineer',
-    company: 'Vercel',
-    tags: ['React', 'TypeScript', 'Open Source'],
-  },
-  {
-    id: '6',
-    displayName: 'JordanLee',
-    emoji: '\uD83C\uDFA8',
-    age: 26,
-    distance: 90,
-    compatibility: 85,
-    role: 'UX Designer',
-    company: 'Figma',
-    tags: ['Design Systems', 'Prototyping', 'User Research'],
-  },
+  { id: '4', displayName: 'AlexChen', emoji: '\uD83D\uDCBC', age: 31, distance: 150, compatibility: 91, role: 'Product Manager', company: 'Stripe', tags: ['Fintech', 'Product Strategy', 'SaaS'] },
+  { id: '5', displayName: 'MayaPatel', emoji: '\uD83D\uDE80', age: 28, distance: 200, compatibility: 88, role: 'Senior Engineer', company: 'Vercel', tags: ['React', 'TypeScript', 'Open Source'] },
+  { id: '6', displayName: 'JordanLee', emoji: '\uD83C\uDFA8', age: 26, distance: 90, compatibility: 85, role: 'UX Designer', company: 'Figma', tags: ['Design Systems', 'Prototyping', 'User Research'] },
+  { id: '10', displayName: 'SamKim', emoji: '\uD83D\uDCCA', age: 33, distance: 170, compatibility: 90, role: 'Data Scientist', company: 'Databricks', tags: ['ML', 'Python', 'Analytics'] },
+  { id: '11', displayName: 'TaylorNg', emoji: '\uD83C\uDFAF', age: 29, distance: 80, compatibility: 86, role: 'Marketing Lead', company: 'Notion', tags: ['Growth', 'Content', 'Community'] },
+  { id: '12', displayName: 'RileyPark', emoji: '\u26A1', age: 27, distance: 130, compatibility: 83, role: 'Founding Engineer', company: 'Stealth', tags: ['Startup', 'Full Stack', 'AI'] },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -108,16 +60,31 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
 
   const profiles = isSocial ? SOCIAL_PROFILES : PROFESSIONAL_PROFILES;
   const [currentIndex, setCurrentIndex] = useState(0);
-  const currentProfile = profiles[currentIndex];
+  const [seenAll, setSeenAll] = useState(false);
+  const currentProfile = seenAll ? null : profiles[currentIndex] || null;
 
   const handleSwipe = useCallback(
     (direction: 'left' | 'right') => {
       if (direction === 'right' && currentProfile) {
-        // Simulate match for demo
+        // 40% chance of match when swiping right
+        if (Math.random() < 0.4) {
+          (navigation as any).navigate('MatchPrompt', {
+            matchId: 'match-' + currentProfile.id,
+            userName: currentProfile.displayName,
+            userAvatar: currentProfile.emoji,
+            distance: currentProfile.distance,
+            compatibility: currentProfile.compatibility,
+          });
+        }
       }
-      setCurrentIndex((prev) => (prev + 1) % profiles.length);
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= profiles.length) {
+        setSeenAll(true);
+      } else {
+        setCurrentIndex(nextIndex);
+      }
     },
-    [currentProfile, profiles.length],
+    [currentProfile, currentIndex, profiles.length, navigation],
   );
 
   const handleProfilePress = useCallback(() => {
@@ -133,6 +100,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     async (newMode: AppMode) => {
       await setMode(newMode);
       setCurrentIndex(0);
+      setSeenAll(false);
     },
     [setMode],
   );
@@ -319,7 +287,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* ── Main Card Stack ─────────────────────────────────────────────── */}
       <View style={styles.cardContainer}>
-        {currentProfile && (
+        {currentProfile ? (
           <TouchableOpacity
             activeOpacity={0.95}
             onPress={handleProfilePress}
@@ -383,6 +351,18 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             </LinearGradient>
           </TouchableOpacity>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateEmoji}>{'\u2728'}</Text>
+            <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>No more people nearby</Text>
+            <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>Check back later or expand your radius</Text>
+            <TouchableOpacity
+              style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => { setCurrentIndex(0); setSeenAll(false); }}
+            >
+              <Text style={styles.emptyStateButtonText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -418,8 +398,10 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const CARD_WIDTH = SCREEN_WIDTH - 48;
-const CARD_HEIGHT = CARD_WIDTH * 1.25;
+// Cap card width for large (web) viewports so the card fits the screen
+const RAW_CARD_WIDTH = SCREEN_WIDTH - 48;
+const CARD_WIDTH = Math.min(RAW_CARD_WIDTH, 400);
+const CARD_HEIGHT = Math.min(CARD_WIDTH * 1.25, SCREEN_HEIGHT * 0.52);
 
 const styles = StyleSheet.create({
   container: {
@@ -741,6 +723,38 @@ const styles = StyleSheet.create({
   likeButtonText: {
     fontSize: 30,
     color: '#FFFFFF',
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  emptyStateEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyStateButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  emptyStateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
 

@@ -13,7 +13,7 @@ import type { OnboardingScreenProps } from '../../navigation/types';
 
 type Props = OnboardingScreenProps<'SocialPrefs'>;
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 const CURRENT_STEP = 4;
 
 const socialColors = {
