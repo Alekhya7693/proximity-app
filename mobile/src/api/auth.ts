@@ -9,16 +9,18 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
+  username: string;
   firstName: string;
   lastName: string;
-  dateOfBirth: string;
-  gender: string;
 }
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  };
 }
 
 export interface VerifyEmailRequest {
@@ -36,215 +38,93 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
-// Check if we're in dev mode (no __DEV__ on web, so also check API reachability)
-const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
-
-/**
- * Create a mock user from registration or login data
- */
-function createMockUser(data: { email: string; firstName?: string; lastName?: string; dateOfBirth?: string; gender?: string }): User {
-  return {
-    id: 'dev-user',
-    email: data.email,
-    firstName: data.firstName || 'Dev',
-    lastName: data.lastName || 'User',
-    displayName: data.firstName || 'DevUser',
-    bio: '',
-    gender: (data.gender as User['gender']) || 'prefer_not_to_say',
-    dateOfBirth: data.dateOfBirth || '2000-01-01',
-    profilePhotos: [],
-    socialInterests: [],
-    professionalInterests: [],
-    vibes: [],
-    isVerified: false,
-    isOnboardingComplete: false,
-    createdAt: new Date().toISOString(),
-  };
-}
-
-function createMockAuthResponse(user: User): AuthResponse {
-  return {
-    user,
-    accessToken: 'dev_access_token_' + Date.now(),
-    refreshToken: 'dev_refresh_token_' + Date.now(),
-  };
-}
-
 export const authApi = {
   async login(data: LoginRequest): Promise<AuthResponse> {
-    try {
-      const response = await apiClient.post<AuthResponse>('/auth/login', data);
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        console.log('[DEV] Backend unavailable, using mock login');
-        const user = createMockUser({ email: data.email });
-        user.isVerified = true;
-        user.isOnboardingComplete = false;
-        return createMockAuthResponse(user);
-      }
-      throw error;
-    }
+    const response = await apiClient.post<AuthResponse>('/auth/login', data);
+    return response.data;
   },
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    try {
-      const response = await apiClient.post<AuthResponse>(
-        '/auth/register',
-        data,
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        console.log('[DEV] Backend unavailable, using mock registration');
-        const user = createMockUser({
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          dateOfBirth: data.dateOfBirth,
-          gender: data.gender,
-        });
-        return createMockAuthResponse(user);
-      }
-      throw error;
-    }
+    const response = await apiClient.post<AuthResponse>(
+      '/auth/register',
+      data,
+    );
+    return response.data;
   },
 
-  async verifyEmail(_data: VerifyEmailRequest): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.post<{ message: string }>(
-        '/auth/verify-email',
-        _data,
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        console.log('[DEV] Backend unavailable, mock email verification success');
-        return { message: 'Email verified successfully' };
-      }
-      throw error;
-    }
+  async verifyEmail(data: VerifyEmailRequest): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(
+      '/auth/verify-email',
+      data,
+    );
+    return response.data;
   },
 
   async resendVerification(
     email: string,
   ): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.post<{ message: string }>(
-        '/auth/resend-verification',
-        { email },
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        return { message: 'Verification code resent' };
-      }
-      throw error;
-    }
+    const response = await apiClient.post<{ message: string }>(
+      '/auth/resend-verification',
+      { email },
+    );
+    return response.data;
   },
 
   async forgotPassword(
     data: ForgotPasswordRequest,
   ): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.post<{ message: string }>(
-        '/auth/forgot-password',
-        data,
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        return { message: 'Password reset email sent' };
-      }
-      throw error;
-    }
+    const response = await apiClient.post<{ message: string }>(
+      '/auth/forgot-password',
+      data,
+    );
+    return response.data;
   },
 
   async resetPassword(
     data: ResetPasswordRequest,
   ): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.post<{ message: string }>(
-        '/auth/reset-password',
-        data,
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        return { message: 'Password reset successfully' };
-      }
-      throw error;
-    }
+    const response = await apiClient.post<{ message: string }>(
+      '/auth/reset-password',
+      data,
+    );
+    return response.data;
   },
 
   async getProfile(): Promise<User> {
-    try {
-      const response = await apiClient.get<User>('/auth/me');
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        return createMockUser({ email: 'dev@proximity.app' });
-      }
-      throw error;
-    }
+    const response = await apiClient.get<User>('/profile/me');
+    return response.data;
   },
 
   async updateProfile(data: Partial<User>): Promise<User> {
-    try {
-      const response = await apiClient.patch<User>('/auth/profile', data);
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        const base = createMockUser({ email: 'dev@proximity.app' });
-        return { ...base, ...data } as User;
-      }
-      throw error;
-    }
+    const response = await apiClient.put<User>('/profile', data);
+    return response.data;
   },
 
   async uploadProfilePhoto(
     formData: FormData,
   ): Promise<{ url: string }> {
-    try {
-      const response = await apiClient.post<{ url: string }>(
-        '/auth/profile/photo',
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        },
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        return { url: 'https://randomuser.me/api/portraits/lego/2.jpg' };
-      }
-      throw error;
-    }
+    const response = await apiClient.post<{ url: string }>(
+      '/profile/photo',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
+    return response.data;
   },
 
   async deleteAccount(): Promise<{ message: string }> {
-    try {
-      const response = await apiClient.delete<{ message: string }>(
-        '/auth/account',
-      );
-      return response.data;
-    } catch (error) {
-      if (IS_DEV) {
-        return { message: 'Account deleted' };
-      }
-      throw error;
-    }
+    const response = await apiClient.delete<{ message: string }>(
+      '/auth/account',
+    );
+    return response.data;
   },
 
   async logout(): Promise<void> {
     try {
       await apiClient.post('/auth/logout');
-    } catch (error) {
-      if (IS_DEV) {
-        console.log('[DEV] Backend unavailable, mock logout');
-        return;
-      }
-      throw error;
+    } catch {
+      // Logout should always succeed client-side even if server is unreachable
     }
   },
 };

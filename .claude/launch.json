@@ -2,6 +2,20 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "admin",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev"],
+      "port": 3000,
+      "cwd": "admin"
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/@nestjs/cli/bin/nest.js", "start", "--watch"],
+      "port": 3001,
+      "cwd": "backend"
+    },
+    {
       "name": "proximity-mobile",
       "runtimeExecutable": "node",
       "runtimeArgs": ["../mobile/node_modules/expo/bin/cli", "start", "--web", "--port", "8081"],

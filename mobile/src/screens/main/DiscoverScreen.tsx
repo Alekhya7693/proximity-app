@@ -1,9 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   Platform,
   ScrollView,
@@ -12,11 +11,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useModeStore, AppMode } from '../../store/modeStore';
+import ProfileCard from '../../components/ProfileCard';
 import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'Discover'>;
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -58,7 +56,10 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const { mode, setMode } = useModeStore();
   const isSocial = mode === 'social';
 
-  const profiles = isSocial ? SOCIAL_PROFILES : PROFESSIONAL_PROFILES;
+  const profiles = useMemo(
+    () => (isSocial ? SOCIAL_PROFILES : PROFESSIONAL_PROFILES),
+    [isSocial],
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [seenAll, setSeenAll] = useState(false);
   const currentProfile = seenAll ? null : profiles[currentIndex] || null;
@@ -105,14 +106,44 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     [setMode],
   );
 
-  // Gradient colors for the card
-  const cardGradientColors: [string, string, string] = isSocial
-    ? [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end]
-    : [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end];
+  // Memoized gradient colors for the card
+  const cardGradientColors = useMemo<[string, string, string]>(
+    () => [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end],
+    [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end],
+  );
 
-  const modeToggleGradient: [string, string] = isSocial
-    ? [theme.colors.gradient.start, theme.colors.gradient.end]
-    : [theme.colors.gradient.start, theme.colors.gradient.end];
+  const modeToggleGradient = useMemo<[string, string]>(
+    () => [theme.colors.gradient.start, theme.colors.gradient.end],
+    [theme.colors.gradient.start, theme.colors.gradient.end],
+  );
+
+  const handleSwipeLeft = useCallback(() => handleSwipe('left'), [handleSwipe]);
+  const handleSwipeRight = useCallback(() => handleSwipe('right'), [handleSwipe]);
+
+  const handleNotifications = useCallback(
+    () => navigation.navigate('Notifications'),
+    [navigation],
+  );
+  const handleSettings = useCallback(
+    () => navigation.navigate('Settings'),
+    [navigation],
+  );
+  const handleCoffeePill = useCallback(
+    () => (navigation as any).navigate('SetVibe', { preSelectedVibe: 'coffee' }),
+    [navigation],
+  );
+  const handleSetVibe = useCallback(
+    () => (navigation as any).navigate('SetVibe'),
+    [navigation],
+  );
+  const handleFilters = useCallback(
+    () => navigation.navigate('Filters'),
+    [navigation],
+  );
+  const handleRefresh = useCallback(() => {
+    setCurrentIndex(0);
+    setSeenAll(false);
+  }, []);
 
   return (
     <SafeAreaView
@@ -146,14 +177,14 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[styles.headerIcon, { backgroundColor: theme.colors.surface }]}
-            onPress={() => navigation.navigate('Notifications')}
+            onPress={handleNotifications}
             activeOpacity={0.7}
           >
             <Text style={styles.headerIconText}>{'\uD83D\uDD14'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerIcon, { backgroundColor: theme.colors.surface }]}
-            onPress={() => navigation.navigate('Settings')}
+            onPress={handleSettings}
             activeOpacity={0.7}
           >
             <Text style={styles.headerIconText}>{'\u2699\uFE0F'}</Text>
@@ -236,7 +267,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={styles.pillsRow}
         style={styles.pillsScroll}
       >
-        <View
+        <TouchableOpacity
           style={[
             styles.vibePill,
             {
@@ -244,6 +275,8 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
               borderColor: theme.colors.primary + '40',
             },
           ]}
+          activeOpacity={0.7}
+          onPress={handleCoffeePill}
         >
           <Text style={styles.vibePillEmoji}>{'\u2615'}</Text>
           <Text style={[styles.vibePillText, { color: theme.colors.primary }]}>
@@ -252,7 +285,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={[styles.vibePillTimer, { color: theme.colors.textTertiary }]}>
             28m
           </Text>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionPill,
@@ -262,6 +295,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
             },
           ]}
           activeOpacity={0.7}
+          onPress={handleSetVibe}
         >
           <Text style={[styles.actionPillText, { color: theme.colors.text }]}>
             + Set Vibe
@@ -276,7 +310,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
             },
           ]}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('Filters')}
+          onPress={handleFilters}
         >
           <Text style={styles.actionPillIcon}>{'\u26A1'}</Text>
           <Text style={[styles.actionPillText, { color: theme.colors.text }]}>
@@ -288,69 +322,12 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
       {/* ── Main Card Stack ─────────────────────────────────────────────── */}
       <View style={styles.cardContainer}>
         {currentProfile ? (
-          <TouchableOpacity
-            activeOpacity={0.95}
+          <ProfileCard
+            profile={currentProfile}
+            isSocial={isSocial}
+            gradientColors={cardGradientColors}
             onPress={handleProfilePress}
-            style={styles.cardTouchable}
-          >
-            <LinearGradient
-              colors={cardGradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.card}
-            >
-              {/* Distance Badge - Top Left */}
-              <View style={styles.distanceBadge}>
-                <Text style={styles.distanceBadgeText}>
-                  {currentProfile.distance}m
-                </Text>
-              </View>
-
-              {/* Match % Badge - Top Right */}
-              <View
-                style={[
-                  styles.matchBadge,
-                  { backgroundColor: 'rgba(255,255,255,0.2)' },
-                ]}
-              >
-                <Text style={styles.matchBadgeText}>
-                  {currentProfile.compatibility}%
-                </Text>
-              </View>
-
-              {/* Center Avatar Emoji */}
-              <View style={styles.avatarEmojiContainer}>
-                <View style={styles.avatarEmojiCircle}>
-                  <Text style={styles.avatarEmoji}>{currentProfile.emoji}</Text>
-                </View>
-              </View>
-
-              {/* Bottom Info */}
-              <View style={styles.cardBottom}>
-                <Text style={styles.cardName}>
-                  {currentProfile.displayName}
-                  {isSocial
-                    ? ` ${currentProfile.age}`
-                    : ''}
-                </Text>
-                {!isSocial && currentProfile.role && (
-                  <Text style={styles.cardRole}>
-                    {currentProfile.role}
-                    {currentProfile.company ? ` @ ${currentProfile.company}` : ''}
-                  </Text>
-                )}
-
-                {/* Tags */}
-                <View style={styles.cardTags}>
-                  {currentProfile.tags.map((tag) => (
-                    <View key={tag} style={styles.cardTag}>
-                      <Text style={styles.cardTagText}>{tag}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+          />
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>{'\u2728'}</Text>
@@ -358,7 +335,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>Check back later or expand your radius</Text>
             <TouchableOpacity
               style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
-              onPress={() => { setCurrentIndex(0); setSeenAll(false); }}
+              onPress={handleRefresh}
             >
               <Text style={styles.emptyStateButtonText}>Refresh</Text>
             </TouchableOpacity>
@@ -371,14 +348,14 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.passButton}
-            onPress={() => handleSwipe('left')}
+            onPress={handleSwipeLeft}
             activeOpacity={0.8}
           >
             <Text style={styles.passButtonText}>{'\u2715'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => handleSwipe('right')}
+            onPress={handleSwipeRight}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -397,11 +374,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-
-// Cap card width for large (web) viewports so the card fits the screen
-const RAW_CARD_WIDTH = SCREEN_WIDTH - 48;
-const CARD_WIDTH = Math.min(RAW_CARD_WIDTH, 400);
-const CARD_HEIGHT = Math.min(CARD_WIDTH * 1.25, SCREEN_HEIGHT * 0.52);
 
 const styles = StyleSheet.create({
   container: {
@@ -562,109 +534,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingTop: 12,
-  },
-  cardTouchable: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 24,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 12,
-      },
-    }),
-  },
-  card: {
-    flex: 1,
-    borderRadius: 24,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-
-  // Distance Badge
-  distanceBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  distanceBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  // Match % Badge
-  matchBadge: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  matchBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  // Avatar Emoji
-  avatarEmojiContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  avatarEmojiCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarEmoji: {
-    fontSize: 56,
-  },
-
-  // Card Bottom
-  cardBottom: {
-    gap: 6,
-  },
-  cardName: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  cardRole: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  cardTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
-  cardTag: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  cardTagText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
   },
 
   // Action Buttons

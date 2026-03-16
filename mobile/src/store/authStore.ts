@@ -59,8 +59,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         isInitialized: true,
       });
-    } catch {
+    } catch (error) {
+      console.warn('Auth initialization failed, defaulting to unauthenticated:', error);
+      // Fail open to auth — explicitly reset to clean unauthenticated state
       set({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
         isLoading: false,
         isInitialized: true,
       });

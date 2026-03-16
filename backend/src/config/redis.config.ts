@@ -2,6 +2,20 @@ import { ConfigService } from '@nestjs/config';
 import Redis, { RedisOptions } from 'ioredis';
 
 export function getRedisConfig(configService: ConfigService): RedisOptions {
+  const redisUrl = configService.get<string>('REDIS_URL');
+
+  if (redisUrl) {
+    return {
+      ...parseRedisUrl(redisUrl),
+      retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        return Math.min(times * 200, 2000);
+      },
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
+    };
+  }
+
   return {
     host: configService.get<string>('REDIS_HOST', 'localhost'),
     port: configService.get<number>('REDIS_PORT', 6379),
@@ -15,6 +29,16 @@ export function getRedisConfig(configService: ConfigService): RedisOptions {
     },
     maxRetriesPerRequest: 3,
     lazyConnect: true,
+  };
+}
+
+function parseRedisUrl(url: string): Partial<RedisOptions> {
+  const parsed = new URL(url);
+  return {
+    host: parsed.hostname,
+    port: parseInt(parsed.port || '6379', 10),
+    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+    db: parsed.pathname ? parseInt(parsed.pathname.replace('/', '') || '0', 10) : 0,
   };
 }
 

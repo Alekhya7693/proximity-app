@@ -201,35 +201,19 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      // Try real API first
       const response = await authApi.login({
         email: email.trim().toLowerCase(),
         password,
       });
-      await setTokens(response.accessToken, response.refreshToken);
+      await setTokens(response.tokens.accessToken, response.tokens.refreshToken);
       await setUser(response.user);
-    } catch {
-      // Mock auth fallback when no backend is available
-      const mockUser = {
-        id: 'user-' + Date.now(),
-        email: email.trim().toLowerCase(),
-        firstName: email.split('@')[0],
-        lastName: '',
-        displayName: 'CosmicFox',
-        bio: '',
-        gender: 'prefer_not_to_say' as const,
-        dateOfBirth: '1995-01-01',
-        profilePhotos: [],
-        socialInterests: [],
-        professionalInterests: [],
-        vibes: [],
-        isVerified: true,
-        isOnboardingComplete: true,
-        createdAt: new Date().toISOString(),
-      };
-      await setTokens('mock-access-' + Date.now(), 'mock-refresh-' + Date.now());
-      await setUser(mockUser);
-      // RootNavigator will auto-navigate based on isAuthenticated
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        (error?.code === 'ERR_NETWORK'
+          ? 'Unable to connect to server. Please try again.'
+          : 'Invalid email or password. Please try again.');
+      showAlert('Login Failed', message);
     } finally {
       setIsLoading(false);
     }

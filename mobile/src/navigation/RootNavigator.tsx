@@ -13,6 +13,19 @@ import MatchPromptScreen from '../screens/main/MatchPromptScreen';
 import FiltersScreen from '../screens/main/FiltersScreen';
 import ReportUserScreen from '../screens/main/ReportUserScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
+import SetVibeScreen from '../screens/main/SetVibeScreen';
+
+// Settings screens
+import EditProfileScreen from '../screens/settings/EditProfileScreen';
+import ChangePasswordScreen from '../screens/settings/ChangePasswordScreen';
+import EmailSettingsScreen from '../screens/settings/EmailSettingsScreen';
+import SocialPrefsSettingsScreen from '../screens/settings/SocialPrefsSettingsScreen';
+import ProfessionalPrefsSettingsScreen from '../screens/settings/ProfessionalPrefsSettingsScreen';
+import BlockedUsersScreen from '../screens/settings/BlockedUsersScreen';
+import PrivacySettingsScreen from '../screens/settings/PrivacySettingsScreen';
+import HelpCenterScreen from '../screens/settings/HelpCenterScreen';
+import ReportProblemScreen from '../screens/settings/ReportProblemScreen';
+import TermsPrivacyScreen from '../screens/settings/TermsPrivacyScreen';
 
 // Admin screens
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
@@ -103,6 +116,61 @@ const RootNavigator: React.FC = () => {
             name="Notifications"
             component={NotificationsScreen}
             options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="ChangePassword"
+            component={ChangePasswordScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="EmailSettings"
+            component={EmailSettingsScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="SocialPrefsSettings"
+            component={SocialPrefsSettingsScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="ProfessionalPrefsSettings"
+            component={ProfessionalPrefsSettingsScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="BlockedUsers"
+            component={BlockedUsersScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="PrivacySettings"
+            component={PrivacySettingsScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="HelpCenter"
+            component={HelpCenterScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="ReportProblem"
+            component={ReportProblemScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="TermsPrivacy"
+            component={TermsPrivacyScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <RootStack.Screen
+            name="SetVibe"
+            component={SetVibeScreen}
+            options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
           />
           <RootStack.Screen
             name="AdminDashboard"

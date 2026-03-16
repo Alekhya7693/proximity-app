@@ -6,7 +6,7 @@ import axios, {
 import { storage } from '../utils/storage';
 import { useAuthStore } from '../store/authStore';
 
-const API_URL = process.env.API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.API_URL || 'http://localhost:3001/api/v1';
 
 let isRefreshing = false;
 let failedQueue: Array<{

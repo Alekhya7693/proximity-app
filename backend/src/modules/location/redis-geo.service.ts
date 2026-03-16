@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Inject, Optional, Logger, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../config/redis.config';
 
@@ -18,11 +18,15 @@ export class RedisGeoService implements OnModuleDestroy {
   private readonly ONLINE_TTL = 300; // 5 minutes
 
   constructor(
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
-  ) {}
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+  ) {
+    if (!this.redis) {
+      this.logger.warn('Redis not available — geo features disabled (no-op mode)');
+    }
+  }
 
   async onModuleDestroy(): Promise<void> {
-    await this.redis.quit();
+    if (this.redis) await this.redis.quit();
   }
 
   /**
@@ -33,6 +37,7 @@ export class RedisGeoService implements OnModuleDestroy {
     longitude: number,
     latitude: number,
   ): Promise<void> {
+    if (!this.redis) return;
     try {
       await this.redis.geoadd(this.GEO_KEY, longitude, latitude, userId);
       // Mark user as online
@@ -59,6 +64,7 @@ export class RedisGeoService implements OnModuleDestroy {
     radiusKm: number,
     count = 100,
   ): Promise<GeoMember[]> {
+    if (!this.redis) return [];
     try {
       const results = await this.redis.georadius(
         this.GEO_KEY,
@@ -88,6 +94,7 @@ export class RedisGeoService implements OnModuleDestroy {
     radiusKm: number,
     count = 100,
   ): Promise<GeoMember[]> {
+    if (!this.redis) return [];
     try {
       const results = await this.redis.georadiusbymember(
         this.GEO_KEY,
@@ -121,6 +128,7 @@ export class RedisGeoService implements OnModuleDestroy {
     userId1: string,
     userId2: string,
   ): Promise<number | null> {
+    if (!this.redis) return null;
     try {
       const distance = await (this.redis as any).geodist(
         this.GEO_KEY,
@@ -144,6 +152,7 @@ export class RedisGeoService implements OnModuleDestroy {
   async getUserPosition(
     userId: string,
   ): Promise<{ longitude: number; latitude: number } | null> {
+    if (!this.redis) return null;
     try {
       const positions = await this.redis.geopos(this.GEO_KEY, userId);
       if (positions && positions[0]) {
@@ -164,6 +173,7 @@ export class RedisGeoService implements OnModuleDestroy {
    * Remove a user's location data.
    */
   async removeUserLocation(userId: string): Promise<void> {
+    if (!this.redis) return;
     try {
       await this.redis.zrem(this.GEO_KEY, userId);
       await this.redis.del(`${this.ONLINE_KEY}:${userId}`);
@@ -176,6 +186,7 @@ export class RedisGeoService implements OnModuleDestroy {
    * Check if a user is currently online.
    */
   async isUserOnline(userId: string): Promise<boolean> {
+    if (!this.redis) return false;
     const online = await this.redis.get(`${this.ONLINE_KEY}:${userId}`);
     return online === '1';
   }
@@ -186,7 +197,7 @@ export class RedisGeoService implements OnModuleDestroy {
   async getOnlineStatuses(
     userIds: string[],
   ): Promise<Record<string, boolean>> {
-    if (userIds.length === 0) return {};
+    if (!this.redis || userIds.length === 0) return {};
 
     const pipeline = this.redis.pipeline();
     for (const userId of userIds) {

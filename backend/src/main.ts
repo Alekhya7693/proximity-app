@@ -83,8 +83,8 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(port);
-  logger.log(`Proximity API running on http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`Proximity API running on port ${port}`);
   logger.log(`Swagger docs available at http://localhost:${port}/docs`);
   logger.log(`Environment: ${configService.get<string>('NODE_ENV', 'development')}`);
 }
