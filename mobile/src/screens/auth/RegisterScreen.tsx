@@ -138,6 +138,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const { setTokens, setUser } = useAuthStore();
 
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -148,6 +151,9 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 
   // Focus states
   const [emailFocused, setEmailFocused] = useState(false);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [firstNameFocused, setFirstNameFocused] = useState(false);
+  const [lastNameFocused, setLastNameFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
@@ -184,6 +190,23 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       newErrors.email = 'Please enter a valid email address';
     }
 
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    } else if (trimmedUsername.length > 30) {
+      newErrors.username = 'Username must not exceed 30 characters';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+      newErrors.username = 'Username can only contain letters, numbers, and underscores';
+    }
+
+    if (!firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
     const passwordValidation = validators.isValidPassword(password);
     if (!passwordValidation.valid) {
       newErrors.password = passwordValidation.errors[0];
@@ -209,35 +232,19 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       const response = await authApi.register({
         email: email.trim().toLowerCase(),
         password,
-        firstName: '',
-        lastName: '',
-        dateOfBirth: '',
-        gender: 'prefer_not_to_say',
+        username: username.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
       });
-      await setTokens(response.accessToken, response.refreshToken);
+      await setTokens(response.tokens.accessToken, response.tokens.refreshToken);
       await setUser(response.user);
-    } catch {
-      // Mock auth fallback — user goes through onboarding
-      const mockUser = {
-        id: 'user-' + Date.now(),
-        email: email.trim().toLowerCase(),
-        firstName: '',
-        lastName: '',
-        displayName: '',
-        bio: '',
-        gender: 'prefer_not_to_say' as const,
-        dateOfBirth: '',
-        profilePhotos: [],
-        socialInterests: [],
-        professionalInterests: [],
-        vibes: [],
-        isVerified: false,
-        isOnboardingComplete: false,
-        createdAt: new Date().toISOString(),
-      };
-      await setTokens('mock-access-' + Date.now(), 'mock-refresh-' + Date.now());
-      await setUser(mockUser);
-      // RootNavigator will auto-navigate to Onboarding because isOnboardingComplete=false
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        (error?.code === 'ERR_NETWORK'
+          ? 'Unable to connect to server. Please try again.'
+          : 'Registration failed. Please try again.');
+      showAlert('Registration Failed', message);
     } finally {
       setIsLoading(false);
     }
@@ -389,6 +396,115 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                   {errors.email}
                 </Animated.Text>
               )}
+            </View>
+
+            {/* Username Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>USERNAME</Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  usernameFocused && styles.inputWrapperFocused,
+                  errors.username ? styles.inputWrapperError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.input}
+                  placeholder="Choose a username"
+                  placeholderTextColor="#6B7280"
+                  value={username}
+                  onChangeText={(text) => {
+                    setUsername(text);
+                    clearError('username');
+                  }}
+                  onFocus={() => setUsernameFocused(true)}
+                  onBlur={() => setUsernameFocused(false)}
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  editable={!isLoading}
+                />
+              </View>
+              {errors.username && (
+                <Animated.Text
+                  entering={enteringAnim(FadeInDown.duration(300))}
+                  style={styles.errorText}
+                >
+                  {errors.username}
+                </Animated.Text>
+              )}
+            </View>
+
+            {/* Name Inputs */}
+            <View style={styles.nameRow}>
+              <View style={[styles.inputGroup, styles.nameField]}>
+                <Text style={styles.inputLabel}>FIRST NAME</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    firstNameFocused && styles.inputWrapperFocused,
+                    errors.firstName ? styles.inputWrapperError : null,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.input}
+                    placeholder="First name"
+                    placeholderTextColor="#6B7280"
+                    value={firstName}
+                    onChangeText={(text) => {
+                      setFirstName(text);
+                      clearError('firstName');
+                    }}
+                    onFocus={() => setFirstNameFocused(true)}
+                    onBlur={() => setFirstNameFocused(false)}
+                    autoCapitalize="words"
+                    autoComplete="given-name"
+                    editable={!isLoading}
+                  />
+                </View>
+                {errors.firstName && (
+                  <Animated.Text
+                    entering={enteringAnim(FadeInDown.duration(300))}
+                    style={styles.errorText}
+                  >
+                    {errors.firstName}
+                  </Animated.Text>
+                )}
+              </View>
+              <View style={styles.nameGap} />
+              <View style={[styles.inputGroup, styles.nameField]}>
+                <Text style={styles.inputLabel}>LAST NAME</Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    lastNameFocused && styles.inputWrapperFocused,
+                    errors.lastName ? styles.inputWrapperError : null,
+                  ]}
+                >
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Last name"
+                    placeholderTextColor="#6B7280"
+                    value={lastName}
+                    onChangeText={(text) => {
+                      setLastName(text);
+                      clearError('lastName');
+                    }}
+                    onFocus={() => setLastNameFocused(true)}
+                    onBlur={() => setLastNameFocused(false)}
+                    autoCapitalize="words"
+                    autoComplete="family-name"
+                    editable={!isLoading}
+                  />
+                </View>
+                {errors.lastName && (
+                  <Animated.Text
+                    entering={enteringAnim(FadeInDown.duration(300))}
+                    style={styles.errorText}
+                  >
+                    {errors.lastName}
+                  </Animated.Text>
+                )}
+              </View>
             </View>
 
             {/* Password Input */}
@@ -664,6 +780,15 @@ const styles = StyleSheet.create({
   },
 
   // ── Inputs ──────────────────────────────────────────────────────
+  nameRow: {
+    flexDirection: 'row',
+  },
+  nameField: {
+    flex: 1,
+  },
+  nameGap: {
+    width: 12,
+  },
   inputGroup: {
     marginBottom: 20,
   },
