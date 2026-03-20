@@ -41,7 +41,7 @@ export default function LoginPage() {
             </div>
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Proximity Admin</h1>
+            <h1 className="text-2xl font-bold">MYKO Admin</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Sign in to the admin dashboard
             </p>
@@ -72,7 +72,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@proximity.app"
+                placeholder="admin@myko.app"
                 required
                 autoComplete="email"
                 className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-shadow"

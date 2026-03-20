@@ -1,5 +1,5 @@
 // ============================================================
-// Proximity Admin - TypeScript Type Definitions
+// MYKO Admin - TypeScript Type Definitions
 // ============================================================
 
 // --- Authentication ---

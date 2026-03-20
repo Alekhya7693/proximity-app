@@ -1,5 +1,5 @@
 /**
- * Client-side rate limiter utilities for Proximity app.
+ * Client-side rate limiter utilities for MYKO app.
  *
  * Features:
  * - Debounce: Prevent rapid button taps (delays execution until pause)

@@ -68,7 +68,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
             <LinearGradient
-              colors={[colors.primary, '#EC4899']}
+              colors={[colors.primary, '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.logoBg}
@@ -78,7 +78,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
-              Proximity Admin
+              MYKO Admin
             </Text>
             <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               Super Admin {'\u00B7'} Live
@@ -178,7 +178,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
               <View key={`bar-${index}`} style={styles.barColumn}>
                 <View style={styles.barTrack}>
                   <LinearGradient
-                    colors={[colors.primary, '#EC4899']}
+                    colors={[colors.primary, '#F97316']}
                     start={{ x: 0, y: 1 }}
                     end={{ x: 0, y: 0 }}
                     style={[
@@ -209,7 +209,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => navigation.navigate('AdminReportQueue')}
           >
             <LinearGradient
-              colors={[colors.primary, '#EC4899']}
+              colors={[colors.primary, '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.primaryAction}
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
     justifyContent: 'flex-end',
-    backgroundColor: '#2D234020',
+    backgroundColor: '#1B5B8A20',
   },
   barFill: {
     width: '100%',

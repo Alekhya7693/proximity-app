@@ -70,8 +70,8 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
   const modeGradientColors = useMemo<[string, string]>(
     () =>
       mode === 'social'
-        ? ['#8B5CF6', '#EC4899']
-        : ['#0F766E', '#0284C7'],
+        ? ['#0EA5E9', '#F97316']
+        : ['#1E3A5F', '#D4A853'],
     [mode],
   );
 

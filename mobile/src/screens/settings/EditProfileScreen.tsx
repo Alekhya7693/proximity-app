@@ -34,7 +34,7 @@ const AVATAR_OPTIONS: AvatarOption[] = [
     id: 'urban-fox',
     name: 'UrbanFox',
     emoji: '\u{1F98A}',
-    gradientColors: ['#8B5CF6', '#A855F7'],
+    gradientColors: ['#0EA5E9', '#06B6D4'],
   },
   {
     id: 'solar-nomad',
@@ -52,13 +52,13 @@ const AVATAR_OPTIONS: AvatarOption[] = [
     id: 'night-hawk',
     name: 'NightHawk',
     emoji: '\u{1F985}',
-    gradientColors: ['#6366F1', '#8B5CF6'],
+    gradientColors: ['#6366F1', '#0EA5E9'],
   },
   {
     id: 'cosmic-drifter',
     name: 'CosmicDrifter',
     emoji: '\u{1F319}',
-    gradientColors: ['#8B5CF6', '#EC4899'],
+    gradientColors: ['#0EA5E9', '#F97316'],
   },
   {
     id: 'ember-spark',

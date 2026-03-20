@@ -20,15 +20,15 @@ const TOTAL_STEPS = 6;
 const CURRENT_STEP = 1;
 
 const socialColors = {
-  background: '#0F0A1A',
-  surface: '#1A1128',
-  primary: '#8B5CF6',
-  secondary: '#EC4899',
+  background: '#0B2545',
+  surface: '#133E68',
+  primary: '#0EA5E9',
+  secondary: '#F97316',
   text: '#FFFFFF',
-  textSecondary: '#A78BFA',
+  textSecondary: '#38BDF8',
   textTertiary: '#6B7280',
-  border: '#2D2340',
-  borderLight: '#1F1730',
+  border: '#1B5B8A',
+  borderLight: '#0F3660',
 };
 
 const ProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   inputContainerFocused: {
     borderColor: socialColors.primary,
-    backgroundColor: 'rgba(139, 92, 246, 0.06)',
+    backgroundColor: 'rgba(14, 165, 233, 0.06)',
   },
   inputContainerMultiline: {
     minHeight: 110,

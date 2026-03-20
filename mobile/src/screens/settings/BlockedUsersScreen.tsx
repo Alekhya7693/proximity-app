@@ -33,14 +33,14 @@ const INITIAL_BLOCKED_USERS: BlockedUser[] = [
     id: '1',
     displayName: 'ShadowWolf',
     emoji: '\u{1F43A}',
-    gradientColors: ['#6366F1', '#8B5CF6'],
+    gradientColors: ['#6366F1', '#0EA5E9'],
     blockedDate: '2 weeks ago',
   },
   {
     id: '2',
     displayName: 'NeonDrift',
     emoji: '\u{1F308}',
-    gradientColors: ['#EC4899', '#F97316'],
+    gradientColors: ['#F97316', '#F97316'],
     blockedDate: '1 month ago',
   },
   {

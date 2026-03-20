@@ -17,15 +17,15 @@ const TOTAL_STEPS = 6;
 const CURRENT_STEP = 4;
 
 const socialColors = {
-  background: '#0F0A1A',
-  surface: '#1A1128',
-  primary: '#8B5CF6',
-  secondary: '#EC4899',
+  background: '#0B2545',
+  surface: '#133E68',
+  primary: '#0EA5E9',
+  secondary: '#F97316',
   text: '#FFFFFF',
-  textSecondary: '#A78BFA',
+  textSecondary: '#38BDF8',
   textTertiary: '#6B7280',
-  border: '#2D2340',
-  borderLight: '#1F1730',
+  border: '#1B5B8A',
+  borderLight: '#0F3660',
 };
 
 const MEET_OPTIONS = ['Everyone', 'Women', 'Men', 'Non-binary'];
@@ -289,9 +289,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.3)',
+    borderColor: 'rgba(249, 115, 22, 0.3)',
     marginBottom: 16,
   },
   modeBadgeText: {

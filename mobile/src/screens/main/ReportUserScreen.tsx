@@ -48,7 +48,7 @@ const ReportUserScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       // TODO: Call report API
       // await reportApi.submitReport({ userId, reason: selectedReason, details: additionalDetails });
-      showAlert('Report Submitted', 'Thank you for helping keep Proximity safe. We will review this report shortly.');
+      showAlert('Report Submitted', 'Thank you for helping keep MYKO safe. We will review this report shortly.');
       navigation.goBack();
     } catch {
       showAlert('Error', 'Failed to submit report. Please try again.');

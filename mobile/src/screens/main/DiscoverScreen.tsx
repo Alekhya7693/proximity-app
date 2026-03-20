@@ -154,20 +154,20 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Proximity
+            MYKO
           </Text>
           <View
             style={[
               styles.modeBadge,
               {
-                backgroundColor: isSocial ? '#10B981' + '20' : '#3B82F6' + '20',
+                backgroundColor: isSocial ? '#0EA5E9' + '20' : '#D4A853' + '20',
               },
             ]}
           >
             <Text
               style={[
                 styles.modeBadgeText,
-                { color: isSocial ? '#10B981' : '#3B82F6' },
+                { color: isSocial ? '#0EA5E9' : '#D4A853' },
               ]}
             >
               {isSocial ? 'SOCIAL' : 'PRO'}
@@ -220,7 +220,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         >
           {isSocial ? (
             <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
+              colors={['#0EA5E9', '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.modeTabGradient}
@@ -243,7 +243,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         >
           {!isSocial ? (
             <LinearGradient
-              colors={['#0F766E', '#0284C7']}
+              colors={['#1E3A5F', '#D4A853']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.modeTabGradient}
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35,
         shadowRadius: 10,

@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   clusterInner: {
-    backgroundColor: '#1A1128',
+    backgroundColor: '#133E68',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   clusterLabel: {
     fontSize: 9,
     fontWeight: '600',
-    color: '#A78BFA',
+    color: '#38BDF8',
     marginTop: -1,
     letterSpacing: 0.5,
   },

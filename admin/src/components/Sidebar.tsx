@@ -84,7 +84,7 @@ export default function Sidebar() {
         </div>
         {!collapsed && (
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">Proximity</span>
+            <span className="text-sm font-semibold">MYKO</span>
             <span className="text-xs text-muted-foreground">Admin Panel</span>
           </div>
         )}

@@ -311,16 +311,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.3)',
+    borderColor: 'rgba(249, 115, 22, 0.3)',
     marginBottom: 24,
   },
   modeBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
-    color: '#EC4899',
+    color: '#F97316',
   },
 
   // ---- Section ----

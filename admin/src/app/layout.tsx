@@ -6,8 +6,8 @@ import QueryProvider from "./QueryProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Proximity Admin",
-  description: "Admin dashboard for the Proximity location-based networking app",
+  title: "MYKO Admin",
+  description: "Admin dashboard for the MYKO location-based networking app",
   icons: {
     icon: "/favicon.ico",
   },

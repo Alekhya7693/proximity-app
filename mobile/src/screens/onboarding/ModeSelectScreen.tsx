@@ -19,15 +19,15 @@ const TOTAL_STEPS = 6;
 const CURRENT_STEP = 2;
 
 const socialColors = {
-  background: '#0F0A1A',
-  surface: '#1A1128',
-  primary: '#8B5CF6',
-  secondary: '#EC4899',
+  background: '#0B2545',
+  surface: '#133E68',
+  primary: '#0EA5E9',
+  secondary: '#F97316',
   text: '#FFFFFF',
-  textSecondary: '#A78BFA',
-  textTertiary: '#6B7280',
-  border: '#2D2340',
-  borderLight: '#1F1730',
+  textSecondary: '#7DD3FC',
+  textTertiary: '#93B8D7',
+  border: '#1B5B8A',
+  borderLight: '#0F3660',
 };
 
 const SOCIAL_TAGS = ['Dating', 'New Friends', 'Coffee Chat', 'Socializing'];
@@ -99,7 +99,7 @@ const ModeSelectScreen: React.FC<Props> = ({ navigation }) => {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={['rgba(236, 72, 153, 0.15)', 'rgba(139, 92, 246, 0.15)']}
+            colors={['rgba(14, 165, 233, 0.15)', 'rgba(249, 115, 22, 0.12)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.modeCardGradient}
@@ -151,7 +151,7 @@ const ModeSelectScreen: React.FC<Props> = ({ navigation }) => {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={['rgba(15, 118, 110, 0.15)', 'rgba(2, 132, 199, 0.15)']}
+            colors={['rgba(30, 58, 95, 0.25)', 'rgba(212, 168, 83, 0.15)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.modeCardGradient}
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   checkCircleTeal: {
-    backgroundColor: '#0F766E',
+    backgroundColor: '#D4A853',
   },
   checkMark: {
     fontSize: 14,
@@ -345,13 +345,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    backgroundColor: 'rgba(14, 165, 233, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.25)',
+    borderColor: 'rgba(14, 165, 233, 0.25)',
   },
   modeTagTeal: {
-    backgroundColor: 'rgba(15, 118, 110, 0.12)',
-    borderColor: 'rgba(15, 118, 110, 0.25)',
+    backgroundColor: 'rgba(212, 168, 83, 0.12)',
+    borderColor: 'rgba(212, 168, 83, 0.25)',
   },
   modeTagText: {
     fontSize: 12,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     color: socialColors.textSecondary,
   },
   modeTagTextTeal: {
-    color: '#14B8A6',
+    color: '#E0BE7A',
   },
 
   // Selected indicator
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     backgroundColor: socialColors.primary,
   },
   selectedDotTeal: {
-    backgroundColor: '#0F766E',
+    backgroundColor: '#D4A853',
   },
   selectedText: {
     fontSize: 13,

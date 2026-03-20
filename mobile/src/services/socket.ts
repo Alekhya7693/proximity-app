@@ -94,7 +94,17 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error: Error) => {
-      console.error('Socket connection error:', error.message);
+      const IS_DEV = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
+      if (IS_DEV) {
+        console.log('[DEV] Socket connection unavailable (backend not running) — chat will use mock data');
+        // In dev mode, stop reconnection attempts to avoid console spam
+        if (this.socket) {
+          this.socket.io.opts.reconnection = false;
+          this.socket.disconnect();
+        }
+      } else {
+        console.error('Socket connection error:', error.message);
+      }
     });
 
     this.socket.on('new_message', (data) => {

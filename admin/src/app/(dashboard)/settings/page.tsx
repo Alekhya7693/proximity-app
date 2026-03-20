@@ -36,7 +36,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="text"
-              defaultValue="Proximity"
+              defaultValue="MYKO"
               className="w-full px-3 py-2 border rounded-md text-sm"
             />
           </div>
@@ -46,7 +46,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="email"
-              defaultValue="support@proximity.app"
+              defaultValue="support@myko.app"
               className="w-full px-3 py-2 border rounded-md text-sm"
             />
           </div>

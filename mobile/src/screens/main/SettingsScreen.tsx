@@ -290,7 +290,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
                 {user?.displayName ?? 'UrbanFox'}
               </Text>
               <Text style={[styles.userEmail, { color: theme.colors.textTertiary }]}>
-                {user?.email ?? 'alex@proximity.app'}
+                {user?.email ?? 'alex@myko.app'}
               </Text>
             </View>
             <Text style={[styles.chevron, { color: theme.colors.textTertiary }]}>
@@ -340,7 +340,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.versionContainer}
         >
           <Text style={[styles.versionText, { color: theme.colors.textTertiary }]}>
-            Proximity v1.0.0
+            MYKO v1.0.0
           </Text>
         </Animated.View>
       </ScrollView>

@@ -32,7 +32,7 @@ const MOCK_NOTIFICATIONS: NotificationItem[] = [
   {
     id: '1',
     icon: '\u2764\uFE0F',
-    iconColor: '#8B5CF6',
+    iconColor: '#0EA5E9',
     title: 'New Match!',
     body: 'You matched with TidalWave',
     time: '2m ago',
@@ -68,7 +68,7 @@ const MOCK_NOTIFICATIONS: NotificationItem[] = [
   {
     id: '5',
     icon: '\u2728',
-    iconColor: '#EC4899',
+    iconColor: '#F97316',
     title: 'Vibe Check reminder',
     body: 'Update your vibe to attract better matches',
     time: '3h ago',
