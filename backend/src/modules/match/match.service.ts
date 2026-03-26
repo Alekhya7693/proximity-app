@@ -119,7 +119,7 @@ export class MatchService {
         { user1Id: userId, status: MatchStatus.ACTIVE },
         { user2Id: userId, status: MatchStatus.ACTIVE },
       ],
-      relations: ['user1', 'user2'],
+      relations: ['user1', 'user1.profile', 'user2', 'user2.profile'],
       order: { matchedAt: 'DESC' },
     });
   }
@@ -194,7 +194,7 @@ export class MatchService {
   async getMatchById(userId: string, matchId: string): Promise<MatchEntity> {
     const match = await this.matchRepository.findOne({
       where: { id: matchId },
-      relations: ['user1', 'user2'],
+      relations: ['user1', 'user1.profile', 'user2', 'user2.profile'],
     });
     if (!match) throw new NotFoundException('Match not found');
     if (match.user1Id !== userId && match.user2Id !== userId) {

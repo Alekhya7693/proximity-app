@@ -85,12 +85,12 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket?.id);
+      if (__DEV__) console.log('Socket connected:', this.socket?.id);
       this.handlers.onConnect?.();
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      console.log('Socket disconnected:', reason);
+      if (__DEV__) console.log('Socket disconnected:', reason);
       this.handlers.onDisconnect?.(reason);
     });
 

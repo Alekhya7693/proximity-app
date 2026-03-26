@@ -294,9 +294,7 @@ const MatchPromptModal: React.FC<MatchPromptModalProps> = ({
 
   if (!matchedUser) return null;
 
-  const matchPhoto =
-    matchedUser.profilePhotos[0] ||
-    'https://randomuser.me/api/portraits/lego/1.jpg';
+  const matchPhoto = matchedUser.profilePhotos[0] || '';
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>

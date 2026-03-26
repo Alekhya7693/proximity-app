@@ -132,6 +132,8 @@ export class ProfileService {
     return {
       id: profile.id,
       userId: profile.userId,
+      displayName: profile.displayName,
+      avatar: profile.avatar,
       bio: profile.bio,
       gender: profile.gender,
       intention: profile.intention,

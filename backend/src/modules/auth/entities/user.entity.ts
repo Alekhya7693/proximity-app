@@ -8,6 +8,7 @@ import {
   OneToMany,
   OneToOne,
 } from 'typeorm';
+import { ProfileEntity } from '../../profile/entities/profile.entity';
 
 export enum UserStatus {
   ACTIVE = 'active',
@@ -83,6 +84,9 @@ export class UserEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   lastActiveAt: Date | null;
+
+  @OneToOne(() => ProfileEntity, (profile) => profile.user, { eager: false })
+  profile: ProfileEntity;
 
   @CreateDateColumn()
   createdAt: Date;

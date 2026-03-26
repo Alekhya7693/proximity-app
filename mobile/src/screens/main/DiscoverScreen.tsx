@@ -14,6 +14,8 @@ import { useTheme } from '../../theme/ThemeContext';
 import { useModeStore, AppMode } from '../../store/modeStore';
 import { useAuthStore } from '../../store/authStore';
 import { discoveryApi, DiscoveryProfile } from '../../api/discovery';
+import { locationService } from '../../services/location';
+import { locationApi } from '../../api/location';
 import ProfileCard from '../../components/ProfileCard';
 import type { MainTabScreenProps } from '../../navigation/types';
 
@@ -58,12 +60,25 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
 
-  // ── Fetch discovery feed ──────────────────────────────────────────────────
+  // ── Update location on mount, then fetch feed ───────────────────────────
 
   const loadFeed = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Update user location on the server before fetching feed
+      const loc = await locationService.getCurrentLocation();
+      if (loc?.coords) {
+        try {
+          await locationApi.updateLocation({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+        } catch {
+          // Non-critical — feed may still work from cached location
+        }
+      }
+
       const result = await discoveryApi.getFeed(
         {
           mode,
@@ -230,7 +245,11 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.statusRow}>
         <View style={styles.statusDot} />
         <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
-          {nearbyCount !== null ? `${nearbyCount} active nearby` : 'Scanning...'}
+          {nearbyCount !== null
+            ? nearbyCount > 0
+              ? `${nearbyCount} ${nearbyCount === 1 ? 'person' : 'people'} found nearby`
+              : 'No one nearby right now'
+            : 'Scanning...'}
         </Text>
       </View>
 

@@ -35,6 +35,34 @@ export interface MatchDetail {
   company?: string;
 }
 
+// Helper: extract display name from user entity
+function extractDisplayName(user: any): string {
+  if (!user) return 'User';
+  if (user.firstName) return `${user.firstName} ${user.lastName || ''}`.trim();
+  if (user.username) return user.username;
+  return 'User';
+}
+
+// Helper: compute a rough compatibility from match data
+function estimateCompatibility(match: any): number {
+  // If backend provides a score, use it
+  if (match.compatibilityScore) return Math.min(match.compatibilityScore, 100);
+  // Estimate based on distance — closer = higher compatibility
+  const dist = match.distanceAtMatchKm ?? 5;
+  if (dist <= 0.3) return 95;
+  if (dist <= 1) return 88;
+  if (dist <= 5) return 78;
+  if (dist <= 10) return 65;
+  return 55;
+}
+
+// Helper: check if user was recently active
+function isRecentlyActive(user: any): boolean {
+  if (!user?.lastActiveAt) return false;
+  const diff = Date.now() - new Date(user.lastActiveAt).getTime();
+  return diff < 15 * 60 * 1000; // active within 15 minutes
+}
+
 export const matchesApi = {
   async getMatches(
     mode: AppMode,
@@ -50,22 +78,22 @@ export const matchesApi = {
 
     const matches: Match[] = matchList.map((match: any) => {
       const otherUser = match.user1Id === currentUserId ? match.user2 : match.user1;
+      const photos = otherUser?.profile?.photos || otherUser?.photos || [];
       return {
         id: match.id,
         userId: otherUser?.id || '',
-        displayName: otherUser?.firstName
-          ? `${otherUser.firstName} ${otherUser.lastName || ''}`.trim()
-          : otherUser?.username || 'User',
-        profilePhoto: '',
-        compatibilityScore: 0,
-        mode: mode,
-        matchedAt: match.matchedAt,
-        isOnline: false,
+        displayName: extractDisplayName(otherUser),
+        profilePhoto: Array.isArray(photos) && photos.length > 0 ? photos[0] : '',
+        compatibilityScore: estimateCompatibility(match),
+        mode: match.mode || mode,
+        matchedAt: match.matchedAt || match.createdAt,
+        lastMessage: match.lastMessage || undefined,
+        isOnline: isRecentlyActive(otherUser),
         distance: match.distanceAtMatchKm ? Math.round(match.distanceAtMatchKm * 1000) : undefined,
       };
     });
 
-    return { matches, hasMore: false };
+    return { matches, hasMore: matchList.length >= limit };
   },
 
   async getMatchDetail(matchId: string): Promise<MatchDetail> {
@@ -73,23 +101,22 @@ export const matchesApi = {
     const match = response.data;
     const currentUserId = useAuthStore.getState().user?.id;
     const otherUser = match.user1Id === currentUserId ? match.user2 : match.user1;
+    const photos = otherUser?.profile?.photos || otherUser?.photos || [];
 
     return {
       id: match.id,
       userId: otherUser?.id || '',
-      displayName: otherUser?.firstName
-        ? `${otherUser.firstName} ${otherUser.lastName || ''}`.trim()
-        : otherUser?.username || 'User',
-      bio: otherUser?.bio || '',
-      age: otherUser?.age || 0,
-      profilePhotos: otherUser?.photos || [],
-      interests: otherUser?.interests || [],
-      vibes: otherUser?.vibes || [],
-      compatibilityScore: 0,
+      displayName: extractDisplayName(otherUser),
+      bio: otherUser?.profile?.bio || otherUser?.bio || '',
+      age: otherUser?.profile?.age || otherUser?.age || 0,
+      profilePhotos: Array.isArray(photos) ? photos : [],
+      interests: otherUser?.profile?.interests || otherUser?.interests || [],
+      vibes: otherUser?.profile?.vibes || otherUser?.vibes || [],
+      compatibilityScore: estimateCompatibility(match),
       mode: match.mode || 'social',
-      matchedAt: match.matchedAt,
-      profession: otherUser?.profession,
-      company: otherUser?.company,
+      matchedAt: match.matchedAt || match.createdAt,
+      profession: otherUser?.profile?.occupation || otherUser?.profession,
+      company: otherUser?.profile?.company || otherUser?.company,
     };
   },
 
@@ -100,7 +127,7 @@ export const matchesApi = {
 
   async sendHi(matchId: string, message?: string): Promise<{ message: string }> {
     const response = await apiClient.post<any>(`/chat/match/${matchId}/messages`, {
-      content: message || 'Hi!',
+      content: message || 'Hi! 👋',
     });
     return { message: response.data?.content || 'Hi sent!' };
   },
