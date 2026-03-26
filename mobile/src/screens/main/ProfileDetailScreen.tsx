@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,83 +7,21 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useModeStore } from '../../store/modeStore';
+import { MatchDetail } from '../../api/matches';
+import { discoveryApi } from '../../api/discovery';
+import apiClient from '../../api/client';
 import { showAlert } from '../../utils/alert';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ProfileDetail'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// ── Mock Data ────────────────────────────────────────────────────────────────
-
-interface SocialProfile {
-  displayName: string;
-  age: number;
-  emoji: string;
-  distance: number;
-  isActive: boolean;
-  compatibility: number;
-  sharedInterests: number;
-  socialStyle: number;
-  vibeMatch: number;
-  currentVibe: string;
-  vibeMinutes: number;
-  bio: string;
-  interests: string[];
-}
-
-interface ProfessionalProfile {
-  displayName: string;
-  emoji: string;
-  role: string;
-  company: string;
-  city: string;
-  distance: number;
-  compatibility: number;
-  industryOverlap: number;
-  roleRelevance: number;
-  networkStyle: number;
-  badges: string[];
-  bio: string;
-  industryFocus: string[];
-}
-
-const MOCK_SOCIAL: SocialProfile = {
-  displayName: 'UrbanFox',
-  age: 27,
-  emoji: '\uD83E\uDD8A',
-  distance: 80,
-  isActive: true,
-  compatibility: 94,
-  sharedInterests: 90,
-  socialStyle: 95,
-  vibeMatch: 97,
-  currentVibe: 'Coffee Chat',
-  vibeMinutes: 28,
-  bio: 'Night owl who loves exploring hidden coffee shops and street art. Always up for a spontaneous adventure or deep conversation over pour-over coffee.',
-  interests: ['Photography', 'Coffee Culture', 'Street Art', 'Live Music', 'Hiking', 'Film'],
-};
-
-const MOCK_PROFESSIONAL: ProfessionalProfile = {
-  displayName: 'AlexChen',
-  emoji: '\uD83D\uDCBC',
-  role: 'Product Manager',
-  company: 'Stripe',
-  city: 'San Francisco',
-  distance: 150,
-  compatibility: 91,
-  industryOverlap: 95,
-  roleRelevance: 88,
-  networkStyle: 90,
-  badges: ['Networking', '150m away'],
-  bio: 'Building the future of payments. 5+ years in fintech product management. Passionate about developer experience and API design. Love connecting with fellow builders.',
-  industryFocus: ['Fintech', 'Product Strategy', 'SaaS', 'API Design', 'Developer Tools'],
-};
 
 // ── Compatibility Bar ────────────────────────────────────────────────────────
 
@@ -104,10 +42,7 @@ const CompatBar: React.FC<CompatBarProps> = ({ label, value, color, trackColor }
       <View
         style={[
           barStyles.fill,
-          {
-            backgroundColor: color,
-            width: `${value}%`,
-          },
+          { backgroundColor: color, width: `${value}%` },
         ]}
       />
     </View>
@@ -115,50 +50,80 @@ const CompatBar: React.FC<CompatBarProps> = ({ label, value, color, trackColor }
 );
 
 const barStyles = StyleSheet.create({
-  container: {
-    marginBottom: 12,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  value: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  track: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 3,
-  },
+  container: { marginBottom: 12 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  label: { fontSize: 13, fontWeight: '500' },
+  value: { fontSize: 13, fontWeight: '700' },
+  track: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 3 },
 });
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
 const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { mode: paramMode } = route.params;
+  const { userId, mode: paramMode } = route.params;
   const theme = useTheme();
   const { mode: storeMode } = useModeStore();
   const mode = paramMode ?? storeMode;
   const isSocial = mode === 'social';
 
-  const handleConnect = () => {
-    // Navigate to chat or trigger connection request
+  const [profile, setProfile] = useState<MatchDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // ── Fetch profile ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await apiClient.get(`/profile/${userId}`);
+        const p = response.data;
+        const detail: MatchDetail = {
+          id: userId,
+          userId: userId,
+          displayName: p.displayName || p.user?.firstName || 'User',
+          bio: p.bio || '',
+          age: p.age || 0,
+          profilePhotos: p.photos || [],
+          interests: p.interests || [],
+          vibes: p.vibes || [],
+          compatibilityScore: 0,
+          mode: mode,
+          matchedAt: '',
+          profession: p.profession,
+          company: p.company,
+        };
+        if (!cancelled) setProfile(detail);
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.response?.data?.message || err?.message || 'Unable to load profile');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, mode]);
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  const handleConnect = useCallback(() => {
     navigation.goBack();
-  };
+  }, [navigation]);
+
+  const handleBlock = useCallback(async () => {
+    try {
+      await discoveryApi.blockUser(userId);
+      showAlert('User Blocked', `${profile?.displayName || 'User'} has been blocked.`);
+      navigation.goBack();
+    } catch {
+      showAlert('Error', 'Failed to block user.');
+    }
+  }, [userId, profile?.displayName, navigation]);
 
   const handleMorePress = useCallback(() => {
-    const profileName = isSocial ? MOCK_SOCIAL.displayName : MOCK_PROFESSIONAL.displayName;
-    const profileEmoji = isSocial ? MOCK_SOCIAL.emoji : MOCK_PROFESSIONAL.emoji;
+    const profileName = profile?.displayName || 'User';
 
     showAlert('Options', undefined, [
       {
@@ -166,9 +131,9 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         style: 'destructive',
         onPress: () => {
           navigation.navigate('ReportUser', {
-            userId: route.params.userId,
+            userId,
             userName: profileName,
-            userAvatar: profileEmoji,
+            userAvatar: '\uD83D\uDC64',
           });
         },
       },
@@ -181,34 +146,58 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             `Are you sure you want to block ${profileName}? You won't see them again.`,
             [
               { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Block',
-                style: 'destructive',
-                onPress: () => {
-                  showAlert('User Blocked', `${profileName} has been blocked.`);
-                  navigation.goBack();
-                },
-              },
+              { text: 'Block', style: 'destructive', onPress: handleBlock },
             ],
           );
         },
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
-  }, [isSocial, navigation, route.params.userId]);
+  }, [profile?.displayName, userId, navigation, handleBlock]);
 
-  // ── Social Mode Render ───────────────────────────────────────────────────
+  // ── Loading / Error ───────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <View style={styles.headerNav}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} activeOpacity={0.7}>
+            <Text style={[styles.navButtonTextDark, { color: theme.colors.text }]}>{'\u2190'}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <View style={styles.headerNav}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} activeOpacity={0.7}>
+            <Text style={[styles.navButtonTextDark, { color: theme.colors.text }]}>{'\u2190'}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centerState}>
+          <Text style={styles.centerEmoji}>{'\u26A0\uFE0F'}</Text>
+          <Text style={[styles.centerTitle, { color: theme.colors.text }]}>Profile unavailable</Text>
+          <Text style={[styles.centerText, { color: theme.colors.textSecondary }]}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Social Mode Render ────────────────────────────────────────────────────
+
   if (isSocial) {
-    const profile = MOCK_SOCIAL;
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         edges={['top']}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Header Gradient Area */}
           <LinearGradient
             colors={[theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end]}
@@ -216,13 +205,8 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
           >
-            {/* Navigation */}
             <View style={styles.headerNav}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={styles.navButton}
-                activeOpacity={0.7}
-              >
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton} activeOpacity={0.7}>
                 <Text style={styles.navButtonText}>{'\u2190'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.navButton} activeOpacity={0.7} onPress={handleMorePress}>
@@ -230,159 +214,103 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               </TouchableOpacity>
             </View>
 
-            {/* Avatar + Info */}
             <View style={styles.headerInfo}>
               <View style={styles.avatarLarge}>
-                <Text style={styles.avatarLargeEmoji}>{profile.emoji}</Text>
+                <Text style={styles.avatarLargeEmoji}>{'\uD83D\uDC64'}</Text>
               </View>
               <Text style={styles.headerName}>
                 {profile.displayName} {'\u00B7'} {profile.age}
               </Text>
-              <View style={styles.headerMeta}>
-                <View style={styles.activeIndicator} />
-                <Text style={styles.headerMetaText}>
-                  {profile.distance}m away {'\u00B7'} Active now
-                </Text>
-              </View>
             </View>
           </LinearGradient>
 
           {/* Compatibility Score Card */}
-          <View
-            style={[
-              styles.section,
-              styles.compatCard,
-              { backgroundColor: theme.colors.surface },
-            ]}
-          >
+          <View style={[styles.section, styles.compatCard, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.compatHeader}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 Compatibility Score
               </Text>
-              <View
-                style={[
-                  styles.compatScoreBadge,
-                  { backgroundColor: theme.colors.primary + '15' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.compatScoreText,
-                    { color: theme.colors.primary },
-                  ]}
-                >
-                  {profile.compatibility}%
+              <View style={[styles.compatScoreBadge, { backgroundColor: theme.colors.primary + '15' }]}>
+                <Text style={[styles.compatScoreText, { color: theme.colors.primary }]}>
+                  {profile.compatibilityScore}%
                 </Text>
               </View>
             </View>
 
             <CompatBar
               label="Shared Interests"
-              value={profile.sharedInterests}
+              value={Math.min(profile.interests.length * 15, 100)}
               color={theme.colors.primary}
               trackColor={theme.colors.primary + '15'}
             />
             <CompatBar
-              label="Social Style"
-              value={profile.socialStyle}
-              color={theme.colors.secondary}
-              trackColor={theme.colors.secondary + '15'}
-            />
-            <CompatBar
               label="Vibe Match"
-              value={profile.vibeMatch}
+              value={Math.min(profile.vibes.length * 20, 100)}
               color={theme.colors.success}
               trackColor={theme.colors.success + '15'}
             />
           </View>
 
-          {/* Current Vibe */}
-          <View style={[styles.section, { paddingHorizontal: 20 }]}>
-            <Text
-              style={[
-                styles.sectionLabel,
-                { color: theme.colors.textTertiary },
-              ]}
-            >
-              CURRENT VIBE
-            </Text>
-            <LinearGradient
-              colors={[theme.colors.gradient.start, theme.colors.gradient.end]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.vibePill}
-            >
-              <Text style={styles.vibePillText}>
-                {'\u2615'} {profile.currentVibe} {'\u00B7'} Active {profile.vibeMinutes} min
-              </Text>
-            </LinearGradient>
-          </View>
-
           {/* About */}
           <View style={[styles.section, { paddingHorizontal: 20 }]}>
-            <Text
-              style={[
-                styles.sectionLabel,
-                { color: theme.colors.textTertiary },
-              ]}
-            >
-              ABOUT
-            </Text>
-            <Text style={[styles.bioText, { color: theme.colors.text }]}>
-              {profile.bio}
-            </Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>ABOUT</Text>
+            <Text style={[styles.bioText, { color: theme.colors.text }]}>{profile.bio}</Text>
           </View>
 
-          {/* Shared Interests */}
+          {/* Interests */}
           <View style={[styles.section, { paddingHorizontal: 20 }]}>
-            <Text
-              style={[
-                styles.sectionLabel,
-                { color: theme.colors.textTertiary },
-              ]}
-            >
-              SHARED INTERESTS
-            </Text>
+            <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>INTERESTS</Text>
             <View style={styles.tagsContainer}>
               {profile.interests.map((interest) => (
                 <View
                   key={interest}
-                  style={[
-                    styles.interestTag,
-                    {
-                      backgroundColor: theme.colors.primary + '15',
-                      borderColor: theme.colors.primary + '30',
-                    },
-                  ]}
+                  style={[styles.interestTag, {
+                    backgroundColor: theme.colors.primary + '15',
+                    borderColor: theme.colors.primary + '30',
+                  }]}
                 >
-                  <Text
-                    style={[
-                      styles.interestTagText,
-                      { color: theme.colors.primary },
-                    ]}
-                  >
+                  <Text style={[styles.interestTagText, { color: theme.colors.primary }]}>
                     {interest}
                   </Text>
                 </View>
               ))}
             </View>
           </View>
+
+          {/* Vibes */}
+          {profile.vibes.length > 0 && (
+            <View style={[styles.section, { paddingHorizontal: 20 }]}>
+              <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>VIBES</Text>
+              <View style={styles.tagsContainer}>
+                {profile.vibes.map((vibe) => (
+                  <View
+                    key={vibe}
+                    style={[styles.interestTag, {
+                      backgroundColor: theme.colors.secondary + '15',
+                      borderColor: theme.colors.secondary + '30',
+                    }]}
+                  >
+                    <Text style={[styles.interestTagText, { color: theme.colors.secondary }]}>
+                      {vibe}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // ── Professional Mode Render ─────────────────────────────────────────────
-  const profile = MOCK_PROFESSIONAL;
+  // ── Professional Mode Render ──────────────────────────────────────────────
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top']}
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={[styles.proHeader, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.headerNav}>
@@ -391,160 +319,76 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
               style={[styles.navButton, { backgroundColor: theme.colors.background }]}
               activeOpacity={0.7}
             >
-              <Text style={[styles.navButtonText, { color: theme.colors.text }]}>
-                {'\u2190'}
-              </Text>
+              <Text style={[styles.navButtonText, { color: theme.colors.text }]}>{'\u2190'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.navButton, { backgroundColor: theme.colors.background }]}
               activeOpacity={0.7}
               onPress={handleMorePress}
             >
-              <Text style={[styles.navButtonText, { color: theme.colors.text }]}>
-                {'\u2022\u2022\u2022'}
-              </Text>
+              <Text style={[styles.navButtonText, { color: theme.colors.text }]}>{'\u2022\u2022\u2022'}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.proHeaderInfo}>
-            <View
-              style={[
-                styles.proAvatarLarge,
-                { backgroundColor: theme.colors.primary + '15' },
-              ]}
-            >
-              <Text style={styles.proAvatarEmoji}>{profile.emoji}</Text>
+            <View style={[styles.proAvatarLarge, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Text style={styles.proAvatarEmoji}>{'\uD83D\uDC64'}</Text>
             </View>
             <Text style={[styles.proName, { color: theme.colors.text }]}>
               {profile.displayName}
             </Text>
-            <Text style={[styles.proRole, { color: theme.colors.textSecondary }]}>
-              {profile.role} @ {profile.company} {'\u00B7'} {profile.city}
-            </Text>
+            {profile.profession && (
+              <Text style={[styles.proRole, { color: theme.colors.textSecondary }]}>
+                {profile.profession}{profile.company ? ` @ ${profile.company}` : ''}
+              </Text>
+            )}
           </View>
         </View>
 
         {/* Compatibility */}
-        <View
-          style={[
-            styles.section,
-            styles.compatCard,
-            {
-              backgroundColor: theme.colors.surface,
-              marginHorizontal: 20,
-            },
-          ]}
-        >
+        <View style={[styles.section, styles.compatCard, { backgroundColor: theme.colors.surface, marginHorizontal: 20 }]}>
           <View style={styles.compatHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              Compatibility
-            </Text>
-            <View
-              style={[
-                styles.compatScoreBadge,
-                { backgroundColor: theme.colors.primary + '15' },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.compatScoreText,
-                  { color: theme.colors.primary },
-                ]}
-              >
-                {profile.compatibility}%
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Compatibility</Text>
+            <View style={[styles.compatScoreBadge, { backgroundColor: theme.colors.primary + '15' }]}>
+              <Text style={[styles.compatScoreText, { color: theme.colors.primary }]}>
+                {profile.compatibilityScore}%
               </Text>
             </View>
           </View>
 
           <CompatBar
-            label="Industry Overlap"
-            value={profile.industryOverlap}
+            label="Shared Interests"
+            value={Math.min(profile.interests.length * 15, 100)}
             color={theme.colors.primary}
             trackColor={theme.colors.primary + '15'}
           />
           <CompatBar
-            label="Role Relevance"
-            value={profile.roleRelevance}
-            color={theme.colors.secondary}
-            trackColor={theme.colors.secondary + '15'}
-          />
-          <CompatBar
-            label="Network Style"
-            value={profile.networkStyle}
+            label="Vibe Match"
+            value={Math.min(profile.vibes.length * 20, 100)}
             color={theme.colors.success}
             trackColor={theme.colors.success + '15'}
           />
         </View>
 
-        {/* Badges */}
-        <View style={[styles.section, { paddingHorizontal: 20 }]}>
-          <View style={styles.badgesRow}>
-            {profile.badges.map((badge) => (
-              <View
-                key={badge}
-                style={[
-                  styles.proBadge,
-                  {
-                    backgroundColor: theme.colors.primary + '10',
-                    borderColor: theme.colors.primary + '30',
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.proBadgeText, { color: theme.colors.primary }]}
-                >
-                  {badge}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* Background */}
         <View style={[styles.section, { paddingHorizontal: 20 }]}>
-          <Text
-            style={[
-              styles.sectionLabel,
-              { color: theme.colors.textTertiary },
-            ]}
-          >
-            BACKGROUND
-          </Text>
-          <Text style={[styles.bioText, { color: theme.colors.text }]}>
-            {profile.bio}
-          </Text>
+          <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>BACKGROUND</Text>
+          <Text style={[styles.bioText, { color: theme.colors.text }]}>{profile.bio}</Text>
         </View>
 
         {/* Industry Focus */}
         <View style={[styles.section, { paddingHorizontal: 20 }]}>
-          <Text
-            style={[
-              styles.sectionLabel,
-              { color: theme.colors.textTertiary },
-            ]}
-          >
-            INDUSTRY FOCUS
-          </Text>
+          <Text style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}>EXPERTISE</Text>
           <View style={styles.tagsContainer}>
-            {profile.industryFocus.map((tag) => (
+            {profile.interests.map((tag) => (
               <View
                 key={tag}
-                style={[
-                  styles.interestTag,
-                  {
-                    backgroundColor: theme.colors.primary + '10',
-                    borderColor: theme.colors.primary + '25',
-                  },
-                ]}
+                style={[styles.interestTag, {
+                  backgroundColor: theme.colors.primary + '10',
+                  borderColor: theme.colors.primary + '25',
+                }]}
               >
-                <Text
-                  style={[
-                    styles.interestTagText,
-                    { color: theme.colors.primary },
-                  ]}
-                >
-                  {tag}
-                </Text>
+                <Text style={[styles.interestTagText, { color: theme.colors.primary }]}>{tag}</Text>
               </View>
             ))}
           </View>
@@ -571,254 +415,92 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 24,
-  },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
+  centerState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  centerEmoji: { fontSize: 64, marginBottom: 16 },
+  centerTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  centerText: { fontSize: 14, textAlign: 'center' },
 
   // Social Header Gradient
   headerGradient: {
-    paddingTop: 8,
-    paddingBottom: 32,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 8, paddingBottom: 32, paddingHorizontal: 20,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
   },
   headerNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingHorizontal: 20, paddingTop: 8,
   },
   navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  navButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  headerInfo: {
-    alignItems: 'center',
-  },
+  navButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
+  navButtonTextDark: { fontSize: 18, fontWeight: '700' },
+  headerInfo: { alignItems: 'center' },
   avatarLarge: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 96, height: 96, borderRadius: 48,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+    borderWidth: 3, borderColor: 'rgba(255,255,255,0.3)',
   },
-  avatarLargeEmoji: {
-    fontSize: 48,
-  },
+  avatarLargeEmoji: { fontSize: 48 },
   headerName: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 6,
-  },
-  headerMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  activeIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-  },
-  headerMetaText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#FFFFFF', fontSize: 24, fontWeight: '800', letterSpacing: -0.3, marginBottom: 6,
   },
 
   // Professional Header
   proHeader: {
-    paddingTop: 8,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingTop: 8, paddingBottom: 24, paddingHorizontal: 20,
+    borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      android: { elevation: 3 },
     }),
   },
-  proHeaderInfo: {
-    alignItems: 'center',
-  },
+  proHeaderInfo: { alignItems: 'center' },
   proAvatarLarge: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    width: 88, height: 88, borderRadius: 44,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
-  proAvatarEmoji: {
-    fontSize: 44,
-  },
-  proName: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  proRole: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  proAvatarEmoji: { fontSize: 44 },
+  proName: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3, marginBottom: 4 },
+  proRole: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
 
   // Sections
-  section: {
-    marginTop: 16,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
+  section: { marginTop: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
 
   // Compat Card
   compatCard: {
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 20,
-    marginTop: -16,
+    marginHorizontal: 20, padding: 20, borderRadius: 20, marginTop: -16,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 4 },
     }),
   },
-  compatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  compatScoreBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  compatScoreText: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-
-  // Vibe Pill
-  vibePill: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  vibePillText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  compatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  compatScoreBadge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12 },
+  compatScoreText: { fontSize: 22, fontWeight: '800' },
 
   // Bio
-  bioText: {
-    fontSize: 15,
-    lineHeight: 23,
-    fontWeight: '400',
-  },
+  bioText: { fontSize: 15, lineHeight: 23, fontWeight: '400' },
 
   // Tags
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  interestTag: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  interestTagText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Pro Badges
-  badgesRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  proBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  proBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  interestTag: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16, borderWidth: 1 },
+  interestTagText: { fontSize: 13, fontWeight: '600' },
 
   // Connect Button
   connectButton: {
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
     ...Platform.select({
-      ios: {
-        shadowColor: '#0F766E',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 6,
-      },
+      ios: { shadowColor: '#0F766E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10 },
+      android: { elevation: 6 },
     }),
   },
-  connectButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
+  connectButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
 });
 
 export default ProfileDetailScreen;

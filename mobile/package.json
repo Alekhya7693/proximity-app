@@ -1,5 +1,5 @@
 {
-  "name": "proximity",
+  "name": "myko",
   "version": "1.0.0",
   "main": "expo/AppEntry.js",
   "scripts": {
@@ -8,7 +8,14 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:dev": "eas build --profile development --platform all",
+    "build:preview": "eas build --profile preview --platform all",
+    "build:prod": "eas build --profile production --platform all",
+    "build:ios": "eas build --profile production --platform ios",
+    "build:android": "eas build --profile production --platform android",
+    "submit:ios": "eas submit --platform ios --profile production",
+    "submit:android": "eas submit --platform android --profile production"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
@@ -27,7 +34,9 @@
     "expo-location": "~18.0.0",
     "expo-notifications": "~0.29.0",
     "expo-secure-store": "~14.0.0",
+    "expo-splash-screen": "~0.29.0",
     "expo-status-bar": "~2.0.0",
+    "expo-updates": "~0.27.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.3",

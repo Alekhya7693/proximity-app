@@ -143,16 +143,16 @@ export class LocationService {
     const results = await this.userRepository
       .createQueryBuilder('user')
       .select([
-        'user.id',
-        `ST_Distance(user.lastLocation, ref.lastLocation) as distance`,
-        `ST_X(user.lastLocation::geometry) as longitude`,
-        `ST_Y(user.lastLocation::geometry) as latitude`,
+        '"user"."id" as user_id',
+        `ST_Distance("user"."lastLocation", "ref"."lastLocation") as distance`,
+        `ST_X("user"."lastLocation"::geometry) as longitude`,
+        `ST_Y("user"."lastLocation"::geometry) as latitude`,
       ])
-      .innerJoin(UserEntity, 'ref', 'ref.id = :userId', { userId })
-      .where('user.id != :userId', { userId })
-      .andWhere('user.lastLocation IS NOT NULL')
+      .innerJoin(UserEntity, 'ref', '"ref"."id" = :userId', { userId })
+      .where('"user"."id" != :userId', { userId })
+      .andWhere('"user"."lastLocation" IS NOT NULL')
       .andWhere(
-        `ST_DWithin(user.lastLocation, ref.lastLocation, :radius)`,
+        `ST_DWithin("user"."lastLocation", "ref"."lastLocation", :radius)`,
         { radius: radiusMeters },
       )
       .orderBy('distance', 'ASC')
@@ -188,12 +188,12 @@ export class LocationService {
     const result = await this.userRepository
       .createQueryBuilder('u1')
       .select(
-        `ST_Distance(u1.lastLocation, u2.lastLocation) / 1000 as distance_km`,
+        `ST_Distance("u1"."lastLocation", "u2"."lastLocation") / 1000 as distance_km`,
       )
-      .innerJoin(UserEntity, 'u2', 'u2.id = :userId2', { userId2 })
-      .where('u1.id = :userId1', { userId1 })
-      .andWhere('u1.lastLocation IS NOT NULL')
-      .andWhere('u2.lastLocation IS NOT NULL')
+      .innerJoin(UserEntity, 'u2', '"u2"."id" = :userId2', { userId2 })
+      .where('"u1"."id" = :userId1', { userId1 })
+      .andWhere('"u1"."lastLocation" IS NOT NULL')
+      .andWhere('"u2"."lastLocation" IS NOT NULL')
       .getRawOne();
 
     return result ? parseFloat(result.distance_km) : null;

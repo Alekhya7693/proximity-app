@@ -61,7 +61,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         {/* Distance Badge - Top Left */}
         <View style={styles.distanceBadge}>
           <Text style={styles.distanceBadgeText}>
-            {profile.distance}m
+            {profile.distance < 1 ? '<1m' : profile.distance >= 1000 ? `${(profile.distance / 1000).toFixed(1)}km` : `${Math.round(profile.distance)}m`}
           </Text>
         </View>
 
@@ -73,7 +73,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
           ]}
         >
           <Text style={styles.matchBadgeText}>
-            {profile.compatibility}%
+            {Math.min(Math.round(profile.compatibility), 100)}%
           </Text>
         </View>
 
@@ -88,7 +88,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         <View style={styles.cardBottom}>
           <Text style={styles.cardName}>
             {profile.displayName}
-            {isSocial ? ` ${profile.age}` : ''}
+            {isSocial && profile.age > 0 ? `, ${profile.age}` : ''}
           </Text>
           {!isSocial && profile.role && (
             <Text style={styles.cardRole}>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,99 +8,120 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import { chatApi, Message } from '../../api/chat';
+import { discoveryApi } from '../../api/discovery';
 import { showAlert } from '../../utils/alert';
 import type { ChatStackScreenProps, RootStackParamList } from '../../navigation/types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Props = ChatStackScreenProps<'ChatDetail'>;
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
+// ── Time formatting ─────────────────────────────────────────────────────────
 
-interface MockMessage {
-  id: string;
-  senderId: string;
-  text: string;
-  time: string;
-  isOwn: boolean;
-  isRead: boolean;
+function formatMessageTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const hours = date.getHours();
+  const mins = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const h = hours % 12 || 12;
+  return `${h}:${mins} ${ampm}`;
 }
-
-const MOCK_MESSAGES: MockMessage[] = [
-  {
-    id: 'msg1',
-    senderId: 'other',
-    text: 'Hey! I noticed we both love coffee shops. Have you tried the new one on 5th?',
-    time: '10:30 AM',
-    isOwn: false,
-    isRead: true,
-  },
-  {
-    id: 'msg2',
-    senderId: 'me',
-    text: 'Not yet! I heard they have amazing pour-overs though. Is it good?',
-    time: '10:32 AM',
-    isOwn: true,
-    isRead: true,
-  },
-  {
-    id: 'msg3',
-    senderId: 'other',
-    text: 'It\'s incredible! The barista does this really cool latte art too. You should totally check it out.',
-    time: '10:34 AM',
-    isOwn: false,
-    isRead: true,
-  },
-  {
-    id: 'msg4',
-    senderId: 'me',
-    text: 'That sounds amazing! Want to check it out together sometime?',
-    time: '10:35 AM',
-    isOwn: true,
-    isRead: true,
-  },
-  {
-    id: 'msg5',
-    senderId: 'other',
-    text: 'That coffee shop sounds amazing! Want to check it out?',
-    time: '10:37 AM',
-    isOwn: false,
-    isRead: true,
-  },
-  {
-    id: 'msg6',
-    senderId: 'me',
-    text: 'Absolutely! How about tomorrow afternoon?',
-    time: '10:38 AM',
-    isOwn: true,
-    isRead: false,
-  },
-];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { matchId, recipientName, recipientAvatar, isActive } = route.params;
+  const { matchId, recipientId, recipientName, recipientAvatar, isActive } = route.params;
+  const targetUserId = recipientId || matchId; // fallback for backward compat
   const theme = useTheme();
   const { user } = useAuthStore();
 
-  const [messages] = useState<MockMessage[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  const handleSend = () => {
+  // ── Fetch messages ────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await chatApi.getMessages(matchId);
+        if (!cancelled) {
+          setMessages(result.messages);
+          // Mark as read
+          chatApi.markAsRead(matchId).catch(() => {});
+        }
+      } catch {
+        // Show empty chat on error
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [matchId]);
+
+  // ── Send message ──────────────────────────────────────────────────────────
+
+  const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text || isSending) return;
+
     setInputText('');
-    // In production, this would send via API/socket
-  };
+    setIsSending(true);
+
+    // Optimistic: add message immediately
+    const optimisticMsg: Message = {
+      id: `temp-${Date.now()}`,
+      matchId,
+      senderId: user?.id || '',
+      text,
+      type: 'text',
+      sentAt: new Date().toISOString(),
+      readAt: null,
+      status: 'sending',
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    try {
+      const sent = await chatApi.sendMessage({ matchId, text });
+      // Replace optimistic message with server response
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticMsg.id ? sent : m)),
+      );
+    } catch {
+      // Mark as failed
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === optimisticMsg.id ? { ...m, status: 'failed' as const } : m,
+        ),
+      );
+    } finally {
+      setIsSending(false);
+    }
+  }, [inputText, isSending, matchId, user?.id]);
+
+  // ── Block user handler ────────────────────────────────────────────────────
+
+  const handleBlock = useCallback(async () => {
+    try {
+      await discoveryApi.blockUser(targetUserId);
+      showAlert('User Blocked', `${recipientName} has been blocked.`);
+      navigation.goBack();
+    } catch {
+      showAlert('Error', 'Failed to block user. Please try again.');
+    }
+  }, [targetUserId, recipientName, navigation]);
 
   const handleMorePress = useCallback(() => {
     showAlert('Options', undefined, [
@@ -108,7 +129,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         text: 'View Profile',
         onPress: () => {
           rootNavigation.navigate('ProfileDetail', {
-            userId: matchId,
+            userId: targetUserId,
             mode: 'social',
           });
         },
@@ -118,7 +139,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         style: 'destructive',
         onPress: () => {
           rootNavigation.navigate('ReportUser', {
-            userId: matchId,
+            userId: targetUserId,
             userName: recipientName,
             userAvatar: recipientAvatar,
           });
@@ -133,26 +154,21 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             `Are you sure you want to block ${recipientName}? You won't see them again.`,
             [
               { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Block',
-                style: 'destructive',
-                onPress: () => {
-                  showAlert('User Blocked', `${recipientName} has been blocked.`);
-                  navigation.goBack();
-                },
-              },
+              { text: 'Block', style: 'destructive', onPress: handleBlock },
             ],
           );
         },
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
-  }, [matchId, recipientName, recipientAvatar, rootNavigation, navigation]);
+  }, [targetUserId, recipientName, recipientAvatar, rootNavigation, handleBlock]);
 
-  // ── Render Message ──────────────────────────────────────────────────────
+  // ── Render Message ────────────────────────────────────────────────────────
 
-  const renderMessage = ({ item }: { item: MockMessage }) => {
-    if (item.isOwn) {
+  const renderMessage = useCallback(({ item }: { item: Message }) => {
+    const isOwn = item.senderId === user?.id;
+
+    if (isOwn) {
       return (
         <View style={[styles.messageBubbleRow, styles.ownRow]}>
           <View style={styles.ownBubbleWrapper}>
@@ -166,19 +182,19 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             </LinearGradient>
             <View style={styles.messageFooter}>
               <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>
-                {item.time}
+                {formatMessageTime(item.sentAt)}
               </Text>
               <Text
                 style={[
                   styles.readReceipt,
                   {
-                    color: item.isRead
+                    color: item.status === 'read'
                       ? theme.colors.primary
                       : theme.colors.textTertiary,
                   },
                 ]}
               >
-                {'\u2713\u2713'}
+                {item.status === 'sending' ? '\u23F3' : '\u2713\u2713'}
               </Text>
             </View>
           </View>
@@ -203,14 +219,38 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             </Text>
           </View>
           <Text style={[styles.messageTime, { color: theme.colors.textTertiary }]}>
-            {item.time}
+            {formatMessageTime(item.sentAt)}
           </Text>
         </View>
       </View>
     );
-  };
+  }, [user?.id, isActive, theme.colors]);
 
-  // ── Active State ────────────────────────────────────────────────────────
+  // ── Loading ───────────────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
+      >
+        <View style={[styles.header, { backgroundColor: theme.colors.surfaceElevated }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
+            <Text style={[styles.backText, { color: theme.colors.primary }]}>{'\u2190'}</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerName, { color: theme.colors.text }]}>{recipientName}</Text>
+          </View>
+          <View style={styles.moreButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Active State ──────────────────────────────────────────────────────────
 
   if (isActive) {
     return (
@@ -225,10 +265,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
         >
           {/* Header */}
           <View
-            style={[
-              styles.header,
-              { backgroundColor: theme.colors.surfaceElevated },
-            ]}
+            style={[styles.header, { backgroundColor: theme.colors.surfaceElevated }]}
           >
             <TouchableOpacity
               onPress={() => navigation.goBack()}
@@ -242,13 +279,10 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
             <View style={styles.headerCenter}>
               <View
-                style={[
-                  styles.headerAvatar,
-                  { backgroundColor: theme.colors.primary + '15' },
-                ]}
+                style={[styles.headerAvatar, { backgroundColor: theme.colors.primary + '15' }]}
               >
                 <Text style={styles.headerAvatarEmoji}>
-                  {recipientAvatar || '\uD83E\uDD8A'}
+                  {recipientAvatar || '\uD83D\uDC64'}
                 </Text>
               </View>
               <View>
@@ -257,13 +291,8 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
                 </Text>
                 <View style={styles.headerStatusRow}>
                   <View style={styles.greenDot} />
-                  <Text
-                    style={[
-                      styles.headerStatus,
-                      { color: theme.colors.success },
-                    ]}
-                  >
-                    Within range {'\u00B7'} 80m
+                  <Text style={[styles.headerStatus, { color: theme.colors.success }]}>
+                    Within range
                   </Text>
                 </View>
               </View>
@@ -278,29 +307,33 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
           {/* Active Banner */}
           <View
-            style={[
-              styles.statusBanner,
-              { backgroundColor: theme.colors.success + '12' },
-            ]}
+            style={[styles.statusBanner, { backgroundColor: theme.colors.success + '12' }]}
           >
             <Text style={[styles.bannerText, { color: theme.colors.success }]}>
-              {'\uD83D\uDCCD'} Chat active {'\u00B7'} Both within 300m {'\u00B7'}{' '}
-              Expires if you leave
+              {'\uD83D\uDCCD'} Chat active {'\u00B7'} Both within 300m {'\u00B7'} Expires if you leave
             </Text>
           </View>
 
           {/* Messages */}
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.messageList}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-          />
+          {messages.length === 0 ? (
+            <View style={styles.emptyMessages}>
+              <Text style={[styles.emptyMessagesText, { color: theme.colors.textTertiary }]}>
+                No messages yet. Say hi!
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.messageList}
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() =>
+                flatListRef.current?.scrollToEnd({ animated: false })
+              }
+            />
+          )}
 
           {/* Input Bar */}
           <View
@@ -333,7 +366,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
             </View>
             <TouchableOpacity
               onPress={handleSend}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || isSending}
               activeOpacity={0.8}
             >
               <View
@@ -355,7 +388,7 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   }
 
-  // ── Greyed Out State (Not Active) ───────────────────────────────────────
+  // ── Greyed Out State (Not Active / Chat Locked) ───────────────────────────
 
   return (
     <SafeAreaView
@@ -363,40 +396,23 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       edges={['bottom']}
     >
       {/* Header */}
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: theme.colors.surfaceElevated },
-        ]}
-      >
+      <View style={[styles.header, { backgroundColor: theme.colors.surfaceElevated }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
           activeOpacity={0.7}
         >
-          <Text style={[styles.backText, { color: theme.colors.primary }]}>
-            {'\u2190'}
-          </Text>
+          <Text style={[styles.backText, { color: theme.colors.primary }]}>{'\u2190'}</Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <View
-            style={[
-              styles.headerAvatar,
-              { backgroundColor: theme.colors.textTertiary + '15' },
-            ]}
-          >
+          <View style={[styles.headerAvatar, { backgroundColor: theme.colors.textTertiary + '15' }]}>
             <Text style={[styles.headerAvatarEmoji, { opacity: 0.5 }]}>
-              {recipientAvatar || '\uD83E\uDD8A'}
+              {recipientAvatar || '\uD83D\uDC64'}
             </Text>
           </View>
           <View>
-            <Text
-              style={[
-                styles.headerName,
-                { color: theme.colors.textTertiary },
-              ]}
-            >
+            <Text style={[styles.headerName, { color: theme.colors.textTertiary }]}>
               {recipientName}
             </Text>
             <View style={styles.headerStatusRow}>
@@ -416,50 +432,21 @@ const ChatDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       </View>
 
       {/* Locked Banner */}
-      <View
-        style={[
-          styles.lockedBanner,
-          { backgroundColor: theme.colors.error + '10' },
-        ]}
-      >
+      <View style={[styles.lockedBanner, { backgroundColor: theme.colors.error + '10' }]}>
         <Text style={[styles.lockedBannerText, { color: theme.colors.error }]}>
-          {'\uD83D\uDD12'} Chat greyed out -- {recipientName} left the area.
-          Messages are read-only. Chat deletes in 46 hours 12 min.
+          {'\uD83D\uDD12'} Chat locked -- {recipientName} left the area. Messages are read-only.
         </Text>
-        {/* Progress bar */}
-        <View
-          style={[
-            styles.progressTrack,
-            { backgroundColor: theme.colors.error + '15' },
-          ]}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              {
-                backgroundColor: theme.colors.error,
-                width: '65%',
-              },
-            ]}
-          />
-        </View>
       </View>
 
       {/* Greyed Out Messages */}
       <FlatList
         data={messages}
-        renderItem={({ item }) => (
-          <View style={styles.greyedMessageRow}>
-            {renderMessage({ item })}
-          </View>
-        )}
+        renderItem={renderMessage}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messageList}
         showsVerticalScrollIndicator={false}
         style={{ opacity: 0.45 }}
       />
-
-      {/* No Input Bar -- read only */}
     </SafeAreaView>
   );
 };
@@ -472,6 +459,21 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyMessages: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  emptyMessagesText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 
   // Header
@@ -582,16 +584,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 19,
     textAlign: 'center',
-    marginBottom: 8,
-  },
-  progressTrack: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
   },
 
   // Messages
@@ -652,11 +644,6 @@ const styles = StyleSheet.create({
   readReceipt: {
     fontSize: 12,
     fontWeight: '600',
-  },
-
-  // Greyed message row
-  greyedMessageRow: {
-    opacity: 1, // overall list is set to 0.45
   },
 
   // Input Bar

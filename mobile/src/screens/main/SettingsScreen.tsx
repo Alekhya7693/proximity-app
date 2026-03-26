@@ -287,10 +287,10 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
             </View>
             <View style={styles.userInfo}>
               <Text style={[styles.userName, { color: theme.colors.text }]}>
-                {user?.displayName ?? 'UrbanFox'}
+                {user?.displayName ?? 'Anonymous'}
               </Text>
               <Text style={[styles.userEmail, { color: theme.colors.textTertiary }]}>
-                {user?.email ?? 'alex@myko.app'}
+                {user?.email ?? ''}
               </Text>
             </View>
             <Text style={[styles.chevron, { color: theme.colors.textTertiary }]}>

@@ -213,7 +213,7 @@ const TermsPrivacyScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.lastUpdated}
         >
           <Text style={[styles.lastUpdatedText, { color: theme.colors.textTertiary }]}>
-            Last updated: March 1, 2026
+            Last updated: March 25, 2026
           </Text>
         </Animated.View>
       </ScrollView>

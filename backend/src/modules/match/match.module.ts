@@ -7,6 +7,7 @@ import { MatchEntity } from './entities/match.entity';
 import { AuthModule } from '../auth/auth.module';
 import { LocationModule } from '../location/location.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { NotificationModule } from '../notification/notification.module';
     AuthModule,
     LocationModule,
     NotificationModule,
+    ChatModule,
   ],
   controllers: [MatchController],
   providers: [MatchService],

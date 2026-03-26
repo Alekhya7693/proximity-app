@@ -621,7 +621,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                 I agree to the{' '}
                 <Text
                   style={styles.linkText}
-                  onPress={() => Linking.openURL('https://proximity.app/terms')}
+                  onPress={() => Linking.openURL('https://myko.app/terms')}
                 >
                   Terms & Conditions
                 </Text>
@@ -629,7 +629,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                 <Text
                   style={styles.linkText}
                   onPress={() =>
-                    Linking.openURL('https://proximity.app/privacy')
+                    Linking.openURL('https://myko.app/privacy')
                   }
                 >
                   Privacy Policy

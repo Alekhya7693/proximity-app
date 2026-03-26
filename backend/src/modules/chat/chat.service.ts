@@ -75,6 +75,21 @@ export class ChatService {
   }
 
   /**
+   * Get chat by match ID with auth check.
+   */
+  async getChatByMatchId(matchId: string, userId: string): Promise<ChatEntity> {
+    const chat = await this.chatRepository.findOne({
+      where: { matchId },
+      relations: ['participant1', 'participant2'],
+    });
+    if (!chat) throw new NotFoundException('Chat not found for this match');
+    if (chat.participant1Id !== userId && chat.participant2Id !== userId) {
+      throw new ForbiddenException('You are not a participant in this chat');
+    }
+    return chat;
+  }
+
+  /**
    * Get chat by ID with auth check.
    */
   async getChatById(chatId: string, userId: string): Promise<ChatEntity> {

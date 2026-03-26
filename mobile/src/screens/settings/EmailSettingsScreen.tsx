@@ -15,6 +15,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import { enteringAnim } from '../../utils/animations';
 import { showAlert } from '../../utils/alert';
+import { authApi } from '../../api/auth';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'EmailSettings'>;
@@ -26,18 +27,31 @@ const EmailSettingsScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
   const { user } = useAuthStore();
 
-  const currentEmail = user?.email ?? 'user@email.com';
+  const currentEmail = user?.email ?? '';
   const [newEmail, setNewEmail] = useState('');
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail);
   const canVerify = newEmail.length > 0 && isValidEmail && newEmail !== currentEmail;
 
-  const handleVerify = () => {
-    if (!canVerify) return;
-    showAlert(
-      'Verification Sent',
-      `A verification link has been sent to ${newEmail}. Please check your inbox.`,
-    );
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleVerify = async () => {
+    if (!canVerify || isVerifying) return;
+    setIsVerifying(true);
+    try {
+      await authApi.updateProfile({ email: newEmail } as any);
+      await authApi.resendVerification(newEmail);
+      showAlert(
+        'Verification Sent',
+        `A verification link has been sent to ${newEmail}. Please check your inbox.`,
+      );
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || 'Failed to update email. Please try again.';
+      showAlert('Error', message);
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (

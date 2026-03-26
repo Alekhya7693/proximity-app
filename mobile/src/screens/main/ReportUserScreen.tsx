@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { showAlert } from '../../utils/alert';
 import { enteringAnim } from '../../utils/animations';
+import { discoveryApi } from '../../api/discovery';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ReportUser'>;
@@ -46,8 +47,7 @@ const ReportUserScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // TODO: Call report API
-      // await reportApi.submitReport({ userId, reason: selectedReason, details: additionalDetails });
+      await discoveryApi.reportUser(userId, selectedReason, additionalDetails || undefined);
       showAlert('Report Submitted', 'Thank you for helping keep MYKO safe. We will review this report shortly.');
       navigation.goBack();
     } catch {

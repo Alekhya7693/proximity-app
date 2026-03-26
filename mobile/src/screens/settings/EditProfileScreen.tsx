@@ -75,8 +75,8 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
   const { user } = useAuthStore();
 
-  const [displayName, setDisplayName] = useState(user?.displayName ?? 'UrbanFox');
-  const [bio, setBio] = useState('Exploring the city and meeting new people.');
+  const [displayName, setDisplayName] = useState(user?.displayName ?? '');
+  const [bio, setBio] = useState(user?.bio ?? '');
   const [selectedAvatar, setSelectedAvatar] = useState<string>('urban-fox');
 
   const currentAvatar = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)!;
@@ -134,7 +134,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <TouchableOpacity activeOpacity={0.7}>
             <Text style={[styles.changePhotoText, { color: theme.colors.primary }]}>
-              Upload Photo (Coming Soon)
+              Change Avatar
             </Text>
           </TouchableOpacity>
         </Animated.View>

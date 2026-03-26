@@ -29,10 +29,10 @@ interface ActionData {
 }
 
 const STATS_DATA: StatData[] = [
-  { label: 'Matches', value: '12', emoji: '\uD83D\uDC9C' },
-  { label: 'Conversations', value: '8', emoji: '\uD83D\uDCAC' },
-  { label: 'Vibes Set', value: '24', emoji: '\u2728' },
-  { label: 'Trust Score', value: '92', emoji: '\uD83D\uDEE1\uFE0F' },
+  { label: 'Matches', value: '0', emoji: '\uD83D\uDC9C' },
+  { label: 'Conversations', value: '0', emoji: '\uD83D\uDCAC' },
+  { label: 'Vibes Set', value: '0', emoji: '\u2728' },
+  { label: 'Trust Score', value: '--', emoji: '\uD83D\uDEE1\uFE0F' },
 ];
 
 const ACTIONS_DATA: ActionData[] = [
@@ -49,8 +49,8 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
   const { user } = useAuthStore();
   const { toggleMode } = useModeStore();
 
-  const displayName = user?.displayName || 'UrbanFox';
-  const email = user?.email || 'name@example.com';
+  const displayName = user?.displayName || 'Anonymous';
+  const email = user?.email || '';
 
   const handleSettings = useCallback(
     () => navigation.navigate('Settings'),

@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { showAlert } from '../../utils/alert';
+import { discoveryApi } from '../../api/discovery';
+import { useModeStore } from '../../store/modeStore';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'SetVibe'>;
@@ -67,7 +69,7 @@ const SetVibeScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedTimer, setSelectedTimer] = useState<string>('1h');
   const [customText, setCustomText] = useState('');
 
-  const handleSetVibe = () => {
+  const handleSetVibe = async () => {
     if (!selectedVibe) {
       showAlert('Select a Vibe', 'Please choose a vibe before activating.');
       return;
@@ -75,13 +77,18 @@ const SetVibeScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const vibe = VIBE_OPTIONS.find((v) => v.id === selectedVibe);
     const timer = TIMER_OPTIONS.find((t) => t.id === selectedTimer);
+    const mode = useModeStore.getState().mode;
 
-    // In production, this would call the API to set the vibe
-    showAlert(
-      'Vibe Set!',
-      `${vibe?.emoji} ${vibe?.label} is now active for ${timer?.label}.${customText ? ` "${customText}"` : ''}`,
-    );
-    navigation.goBack();
+    try {
+      await discoveryApi.setActiveVibes([selectedVibe], mode);
+      showAlert(
+        'Vibe Set!',
+        `${vibe?.emoji} ${vibe?.label} is now active for ${timer?.label}.${customText ? ` "${customText}"` : ''}`,
+      );
+      navigation.goBack();
+    } catch {
+      showAlert('Error', 'Failed to set vibe. Please try again.');
+    }
   };
 
   return (

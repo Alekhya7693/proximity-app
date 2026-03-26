@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { enteringAnim } from '../../utils/animations';
 import { showAlert } from '../../utils/alert';
+import { authApi } from '../../api/auth';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ChangePassword'>;
@@ -67,10 +68,25 @@ const ChangePasswordScreen: React.FC<Props> = ({ navigation }) => {
     newPassword.length >= 8 &&
     newPassword === confirmPassword;
 
-  const handleSave = () => {
-    if (!canSave) return;
-    showAlert('Password Updated', 'Your password has been changed successfully.');
-    navigation.goBack();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!canSave || isSaving) return;
+    setIsSaving(true);
+    try {
+      await authApi.changePassword({
+        currentPassword,
+        newPassword,
+      });
+      showAlert('Password Updated', 'Your password has been changed successfully.');
+      navigation.goBack();
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || 'Failed to change password. Please try again.';
+      showAlert('Error', message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderPasswordField = (

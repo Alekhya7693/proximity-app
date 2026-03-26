@@ -45,6 +45,70 @@ export class ChatController {
     return { unreadCount: count };
   }
 
+  @Post()
+  @ApiOperation({ summary: 'Create or get chat for a match' })
+  @ApiResponse({ status: 201, description: 'Chat created or retrieved' })
+  async createChat(
+    @CurrentUser('id') userId: string,
+    @Body() body: { matchId: string; recipientId: string },
+  ) {
+    return this.chatService.getOrCreateChat(userId, body.recipientId, body.matchId);
+  }
+
+  @Get('match/:matchId')
+  @ApiOperation({ summary: 'Get chat by match ID' })
+  @ApiResponse({ status: 200, description: 'Chat details' })
+  @ApiResponse({ status: 404, description: 'Chat not found for this match' })
+  async getChatByMatch(
+    @Param('matchId', ParseUUIDPipe) matchId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.chatService.getChatByMatchId(matchId, userId);
+  }
+
+  @Get('match/:matchId/messages')
+  @ApiOperation({ summary: 'Get messages by match ID' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiResponse({ status: 200, description: 'Messages list' })
+  async getMessagesByMatch(
+    @Param('matchId', ParseUUIDPipe) matchId: string,
+    @CurrentUser('id') userId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+  ) {
+    const chat = await this.chatService.getChatByMatchId(matchId, userId);
+    return this.chatService.getMessages(chat.id, userId, page, limit);
+  }
+
+  @Post('match/:matchId/messages')
+  @ApiOperation({ summary: 'Send message by match ID' })
+  @ApiResponse({ status: 201, description: 'Message sent' })
+  async sendMessageByMatch(
+    @Param('matchId', ParseUUIDPipe) matchId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { content: string; type?: string },
+  ) {
+    const chat = await this.chatService.getChatByMatchId(matchId, userId);
+    return this.chatService.sendMessage({
+      chatId: chat.id,
+      senderId: userId,
+      content: body.content,
+    });
+  }
+
+  @Patch('match/:matchId/read')
+  @ApiOperation({ summary: 'Mark messages as read by match ID' })
+  @ApiResponse({ status: 200, description: 'Messages marked as read' })
+  async markAsReadByMatch(
+    @Param('matchId', ParseUUIDPipe) matchId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const chat = await this.chatService.getChatByMatchId(matchId, userId);
+    await this.chatService.markAsRead(chat.id, userId);
+    return { message: 'Messages marked as read' };
+  }
+
   @Get(':chatId')
   @ApiOperation({ summary: 'Get chat details' })
   @ApiResponse({ status: 200, description: 'Chat details' })

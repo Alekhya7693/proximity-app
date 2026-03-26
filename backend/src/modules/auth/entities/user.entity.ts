@@ -59,10 +59,10 @@ export class UserEntity {
   @Column({ default: false })
   emailVerified: boolean;
 
-  @Column({ nullable: true, length: 6 })
+  @Column({ nullable: true, length: 6, select: false })
   verificationCode: string | null;
 
-  @Column({ nullable: true, type: 'timestamp' })
+  @Column({ nullable: true, type: 'timestamp', select: false })
   verificationCodeExpiresAt: Date | null;
 
   @Column({ nullable: true, type: 'varchar', length: 512 })

@@ -13,8 +13,8 @@ export interface GeoMember {
 @Injectable()
 export class RedisGeoService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisGeoService.name);
-  private readonly GEO_KEY = 'proximity:user_locations';
-  private readonly ONLINE_KEY = 'proximity:online_users';
+  private readonly GEO_KEY = 'myko:user_locations';
+  private readonly ONLINE_KEY = 'myko:online_users';
   private readonly ONLINE_TTL = 300; // 5 minutes
 
   constructor(

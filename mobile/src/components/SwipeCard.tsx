@@ -144,8 +144,7 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
           <Image
             source={{
               uri:
-                profile.profilePhotos[0] ||
-                'https://randomuser.me/api/portraits/lego/1.jpg',
+                profile.profilePhotos[0] || undefined,
             }}
             style={styles.photo}
             resizeMode="cover"

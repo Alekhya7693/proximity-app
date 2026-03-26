@@ -13,6 +13,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { VibeModule } from './modules/vibe/vibe.module';
 import { SafetyModule } from './modules/safety/safety.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { HealthModule } from './modules/health/health.module';
 
 const logger = new Logger('AppModule');
 
@@ -25,7 +26,7 @@ const optionalImports = redisHost
         inject: [ConfigService],
         useFactory: (configService: ConfigService) => ({
           redis: getRedisConfig(configService),
-          prefix: configService.get<string>('BULL_QUEUE_PREFIX', 'proximity'),
+          prefix: configService.get<string>('BULL_QUEUE_PREFIX', 'myko'),
         }),
       }),
     ]
@@ -64,6 +65,7 @@ if (!redisHost) {
     VibeModule,
     SafetyModule,
     NotificationModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

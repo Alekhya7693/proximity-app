@@ -18,7 +18,7 @@ import type { RootStackScreenProps } from '../../navigation/types';
 type Props = RootStackScreenProps<'BlockedUsers'>;
 
 // ---------------------------------------------------------------------------
-// Types & Mock Data
+// Types & Data
 // ---------------------------------------------------------------------------
 interface BlockedUser {
   id: string;
@@ -28,36 +28,15 @@ interface BlockedUser {
   blockedDate: string;
 }
 
-const INITIAL_BLOCKED_USERS: BlockedUser[] = [
-  {
-    id: '1',
-    displayName: 'ShadowWolf',
-    emoji: '\u{1F43A}',
-    gradientColors: ['#6366F1', '#0EA5E9'],
-    blockedDate: '2 weeks ago',
-  },
-  {
-    id: '2',
-    displayName: 'NeonDrift',
-    emoji: '\u{1F308}',
-    gradientColors: ['#F97316', '#F97316'],
-    blockedDate: '1 month ago',
-  },
-  {
-    id: '3',
-    displayName: 'GhostPulse',
-    emoji: '\u{1F47B}',
-    gradientColors: ['#94A3B8', '#64748B'],
-    blockedDate: '3 months ago',
-  },
-];
+// Blocked users will be fetched from the backend API in production.
+// Starting with an empty array to avoid showing placeholder data.
 
 // ===========================================================================
 // BlockedUsersScreen
 // ===========================================================================
 const BlockedUsersScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
-  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>(INITIAL_BLOCKED_USERS);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
 
   const handleUnblock = (user: BlockedUser) => {
     showAlert(

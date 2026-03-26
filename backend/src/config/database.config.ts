@@ -26,9 +26,9 @@ export function getDatabaseConfig(
     : {
         host: configService.get<string>('DB_HOST', 'localhost'),
         port: configService.get<number>('DB_PORT', 5432),
-        username: configService.get<string>('DB_USERNAME', 'proximity'),
-        password: configService.get<string>('DB_PASSWORD', 'proximity_secret'),
-        database: configService.get<string>('DB_DATABASE', 'proximity_db'),
+        username: configService.get<string>('DB_USERNAME', 'myko'),
+        password: configService.get<string>('DB_PASSWORD', 'myko_secret'),
+        database: configService.get<string>('DB_DATABASE', 'myko_db'),
       };
 
   const useSsl = databaseUrl
@@ -58,9 +58,9 @@ const cliConnectionConfig = databaseUrl
   : {
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'proximity',
-      password: process.env.DB_PASSWORD || 'proximity_secret',
-      database: process.env.DB_DATABASE || 'proximity_db',
+      username: process.env.DB_USERNAME || 'myko',
+      password: process.env.DB_PASSWORD || 'myko_secret',
+      database: process.env.DB_DATABASE || 'myko_db',
     };
 
 const dataSourceOptions: DataSourceOptions = {

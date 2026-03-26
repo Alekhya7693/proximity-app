@@ -12,6 +12,7 @@ import { MatchEntity, MatchStatus } from './entities/match.entity';
 import { UserEntity } from '../auth/entities/user.entity';
 import { RedisGeoService } from '../location/redis-geo.service';
 import { NotificationService } from '../notification/notification.service';
+import { ChatService } from '../chat/chat.service';
 
 interface SwipeResult {
   swipe: SwipeEntity;
@@ -32,6 +33,7 @@ export class MatchService {
     private readonly userRepository: Repository<UserEntity>,
     private readonly redisGeoService: RedisGeoService,
     private readonly notificationService: NotificationService,
+    private readonly chatService: ChatService,
   ) {}
 
   /**
@@ -186,6 +188,21 @@ export class MatchService {
     return query.getMany();
   }
 
+  /**
+   * Get a single match by ID with authorization check.
+   */
+  async getMatchById(userId: string, matchId: string): Promise<MatchEntity> {
+    const match = await this.matchRepository.findOne({
+      where: { id: matchId },
+      relations: ['user1', 'user2'],
+    });
+    if (!match) throw new NotFoundException('Match not found');
+    if (match.user1Id !== userId && match.user2Id !== userId) {
+      throw new ForbiddenException('You are not part of this match');
+    }
+    return match;
+  }
+
   // ─── Private ──────────────────────────────────────────────
 
   private async createMatch(
@@ -221,6 +238,9 @@ export class MatchService {
     });
 
     const savedMatch = await this.matchRepository.save(match);
+
+    // Auto-create chat for this match
+    await this.chatService.getOrCreateChat(user1Id, user2Id, savedMatch.id);
 
     // Send push notification to both users
     await this.notificationService.sendMatchNotification(user1Id, user2Id);

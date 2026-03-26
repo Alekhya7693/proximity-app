@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { enteringAnim } from '../../utils/animations';
 import { showAlert } from '../../utils/alert';
+import { authApi } from '../../api/auth';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ReportProblem'>;
@@ -36,13 +37,26 @@ const ReportProblemScreen: React.FC<Props> = ({ navigation }) => {
 
   const canSubmit = category !== null && description.trim().length >= 10;
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-    showAlert(
-      'Report Submitted',
-      'Thank you for your feedback. We will review your report and get back to you.',
-    );
-    navigation.goBack();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!canSubmit || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await authApi.submitSupportReport({
+        category: category!,
+        description: description.trim(),
+      });
+      showAlert(
+        'Report Submitted',
+        'Thank you for your feedback. We will review your report and get back to you.',
+      );
+      navigation.goBack();
+    } catch {
+      showAlert('Error', 'Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

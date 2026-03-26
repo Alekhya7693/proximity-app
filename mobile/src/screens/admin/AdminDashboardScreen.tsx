@@ -35,11 +35,12 @@ interface BarData {
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
+// Stats will be fetched from admin API in production.
 const STATS: StatCard[] = [
-  { id: 'active', title: 'Active Users (24h)', value: '8,421', trend: '+12%', trendUp: true },
-  { id: 'matches', title: 'New Matches Today', value: '1,204', trend: '+8%', trendUp: true },
-  { id: 'reports', title: 'Open Reports', value: '23', trend: '-15%', trendUp: false },
-  { id: 'chats', title: 'Active Chats', value: '3,891', trend: '+5%', trendUp: true },
+  { id: 'active', title: 'Active Users (24h)', value: '--', trend: '--', trendUp: true },
+  { id: 'matches', title: 'New Matches Today', value: '--', trend: '--', trendUp: true },
+  { id: 'reports', title: 'Open Reports', value: '0', trend: '--', trendUp: false },
+  { id: 'chats', title: 'Active Chats', value: '--', trend: '--', trendUp: true },
 ];
 
 const ACTIVITY_DATA: BarData[] = [
@@ -73,7 +74,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
               end={{ x: 1, y: 1 }}
               style={styles.logoBg}
             >
-              <Text style={styles.logoText}>P</Text>
+              <Text style={styles.logoText}>M</Text>
             </LinearGradient>
           </View>
           <View>
@@ -93,7 +94,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
             style={[styles.alertBadge, { backgroundColor: colors.alertHigh + '20' }]}
           >
             <Text style={[styles.alertBadgeText, { color: colors.alertHigh }]}>
-              {'\u26A0'} 23 Reports
+              {'\u26A0'} Reports
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

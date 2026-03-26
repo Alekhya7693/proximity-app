@@ -226,6 +226,32 @@ export class AuthService {
     return newTokens;
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id: userId })
+      .getOne();
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const passwordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const newHash = await bcrypt.hash(newPassword, this.SALT_ROUNDS);
+    await this.userRepository.update(userId, { passwordHash: newHash });
+
+    this.logger.log(`Password changed for user: ${userId}`);
+  }
+
   async logout(userId: string, refreshToken?: string): Promise<void> {
     if (refreshToken) {
       // Revoke specific session

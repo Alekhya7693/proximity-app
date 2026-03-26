@@ -290,10 +290,17 @@ export class DiscoveryService {
     return [];
   }
 
-  private sanitizeProfile(profile: ProfileEntity): Partial<ProfileEntity> {
+  private sanitizeProfile(profile: ProfileEntity): Record<string, any> {
+    const user = profile.user;
     return {
       id: profile.id,
       userId: profile.userId,
+      displayName: user
+        ? user.firstName || user.username
+        : undefined,
+      age: user?.dateOfBirth
+        ? this.calculateAge(user.dateOfBirth)
+        : undefined,
       bio: profile.bio,
       gender: profile.gender,
       intention: profile.intention,
