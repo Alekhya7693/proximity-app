@@ -28,12 +28,12 @@ function getEnvConfig(): EnvConfig {
   const API_URL =
     process.env.API_URL ||
     extra.API_URL ||
-    'http://localhost:3001/api/v1';
+    'https://proximity-backend-production-aee2.up.railway.app/api/v1';
 
   const SOCKET_URL =
     process.env.SOCKET_URL ||
     extra.SOCKET_URL ||
-    'http://localhost:3001';
+    'https://proximity-backend-production-aee2.up.railway.app';
 
   const GOOGLE_MAPS_API_KEY =
     process.env.GOOGLE_MAPS_API_KEY ||
