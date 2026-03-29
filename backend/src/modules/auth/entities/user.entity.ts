@@ -69,15 +69,12 @@ export class UserEntity {
   @Column({ nullable: true, type: 'varchar', length: 512 })
   fcmToken: string | null;
 
-  // PostGIS geography point for last known location
-  @Column({
-    type: 'geography',
-    spatialFeatureType: 'Point',
-    srid: 4326,
-    nullable: true,
-  })
-  @Index({ spatial: true })
-  lastLocation: string | null;
+  // Latitude/Longitude as simple floats (no PostGIS dependency)
+  @Column({ type: 'double precision', nullable: true })
+  lastLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  lastLongitude: number | null;
 
   @Column({ type: 'timestamp', nullable: true })
   lastLocationUpdatedAt: Date | null;

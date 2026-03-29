@@ -49,7 +49,7 @@ export class LocationService {
   }
 
   /**
-   * Update user's location in both PostGIS (persistent) and Redis (real-time).
+   * Update user's location in both database (persistent) and Redis (real-time).
    */
   async updateLocation(
     userId: string,
@@ -76,18 +76,13 @@ export class LocationService {
       update.latitude,
     );
 
-    // Update PostGIS in database for persistent storage
-    await this.userRepository
-      .createQueryBuilder()
-      .update(UserEntity)
-      .set({
-        lastLocation: () =>
-          `ST_SetSRID(ST_MakePoint(${update.longitude}, ${update.latitude}), 4326)`,
-        lastLocationUpdatedAt: new Date(),
-        lastActiveAt: new Date(),
-      })
-      .where('id = :id', { id: userId })
-      .execute();
+    // Update lat/lng in database for persistent storage
+    await this.userRepository.update(userId, {
+      lastLatitude: update.latitude,
+      lastLongitude: update.longitude,
+      lastLocationUpdatedAt: new Date(),
+      lastActiveAt: new Date(),
+    });
 
     this.logger.debug(
       `Location updated for ${userId}: [${update.latitude}, ${update.longitude}]`,
@@ -131,41 +126,53 @@ export class LocationService {
   }
 
   /**
-   * PostGIS fallback for nearby user queries.
+   * Database fallback for nearby user queries using haversine formula.
    */
   async getNearbyUsersFromPostGIS(
     userId: string,
     radiusKm: number,
     limit: number,
   ): Promise<GeoMember[]> {
-    const radiusMeters = radiusKm * 1000;
+    // Get the requesting user's location first
+    const currentUser = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'lastLatitude', 'lastLongitude'],
+    });
 
-    const results = await this.userRepository
+    if (!currentUser?.lastLatitude || !currentUser?.lastLongitude) {
+      return [];
+    }
+
+    // Fetch all users with locations and filter in-memory using haversine
+    const users = await this.userRepository
       .createQueryBuilder('user')
-      .select([
-        '"user"."id" as user_id',
-        `ST_Distance("user"."lastLocation", "ref"."lastLocation") as distance`,
-        `ST_X("user"."lastLocation"::geometry) as longitude`,
-        `ST_Y("user"."lastLocation"::geometry) as latitude`,
-      ])
-      .innerJoin(UserEntity, 'ref', '"ref"."id" = :userId', { userId })
-      .where('"user"."id" != :userId', { userId })
-      .andWhere('"user"."lastLocation" IS NOT NULL')
-      .andWhere(
-        `ST_DWithin("user"."lastLocation", "ref"."lastLocation", :radius)`,
-        { radius: radiusMeters },
-      )
-      .orderBy('distance', 'ASC')
-      .limit(limit)
-      .getRawMany();
+      .select(['user.id', 'user.lastLatitude', 'user.lastLongitude'])
+      .where('user.id != :userId', { userId })
+      .andWhere('user.lastLatitude IS NOT NULL')
+      .andWhere('user.lastLongitude IS NOT NULL')
+      .getMany();
 
-    return results.map((row) => ({
-      userId: row.user_id,
-      longitude: parseFloat(row.longitude),
-      latitude: parseFloat(row.latitude),
-      distance: parseFloat(row.distance) / 1000, // convert to km
-      unit: 'km',
-    }));
+    const nearby = users
+      .map((u) => {
+        const dist = this.haversineDistance(
+          currentUser.lastLatitude!,
+          currentUser.lastLongitude!,
+          u.lastLatitude!,
+          u.lastLongitude!,
+        );
+        return {
+          userId: u.id,
+          longitude: u.lastLongitude!,
+          latitude: u.lastLatitude!,
+          distance: dist,
+          unit: 'km' as const,
+        };
+      })
+      .filter((m) => m.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit);
+
+    return nearby;
   }
 
   /**
@@ -184,19 +191,21 @@ export class LocationService {
       return redisDistance;
     }
 
-    // Fall back to PostGIS
-    const result = await this.userRepository
-      .createQueryBuilder('u1')
-      .select(
-        `ST_Distance("u1"."lastLocation", "u2"."lastLocation") / 1000 as distance_km`,
-      )
-      .innerJoin(UserEntity, 'u2', '"u2"."id" = :userId2', { userId2 })
-      .where('"u1"."id" = :userId1', { userId1 })
-      .andWhere('"u1"."lastLocation" IS NOT NULL')
-      .andWhere('"u2"."lastLocation" IS NOT NULL')
-      .getRawOne();
+    // Fall back to database lat/lng
+    const u1 = await this.userRepository.findOne({
+      where: { id: userId1 },
+      select: ['id', 'lastLatitude', 'lastLongitude'],
+    });
+    const u2 = await this.userRepository.findOne({
+      where: { id: userId2 },
+      select: ['id', 'lastLatitude', 'lastLongitude'],
+    });
 
-    return result ? parseFloat(result.distance_km) : null;
+    if (!u1?.lastLatitude || !u1?.lastLongitude || !u2?.lastLatitude || !u2?.lastLongitude) {
+      return null;
+    }
+
+    return this.haversineDistance(u1.lastLatitude, u1.lastLongitude, u2.lastLatitude, u2.lastLongitude);
   }
 
   /**
@@ -205,7 +214,8 @@ export class LocationService {
   async clearLocation(userId: string): Promise<void> {
     await this.redisGeoService.removeUserLocation(userId);
     await this.userRepository.update(userId, {
-      lastLocation: null,
+      lastLatitude: null,
+      lastLongitude: null,
       lastLocationUpdatedAt: null,
     });
   }
