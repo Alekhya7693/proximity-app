@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,66 +7,20 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
+import { authApi } from '../../api/auth';
 import { enteringAnim } from '../../utils/animations';
 import { showAlert } from '../../utils/alert';
+import { AVATAR_OPTIONS, getAvatarById } from '../../constants/avatars';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'EditProfile'>;
-
-// ---------------------------------------------------------------------------
-// Avatar Options (reused from AvatarSetupScreen)
-// ---------------------------------------------------------------------------
-interface AvatarOption {
-  id: string;
-  name: string;
-  emoji: string;
-  gradientColors: [string, string];
-}
-
-const AVATAR_OPTIONS: AvatarOption[] = [
-  {
-    id: 'urban-fox',
-    name: 'UrbanFox',
-    emoji: '\u{1F98A}',
-    gradientColors: ['#8B5CF6', '#A855F7'],
-  },
-  {
-    id: 'solar-nomad',
-    name: 'SolarNomad',
-    emoji: '\u2B50',
-    gradientColors: ['#F59E0B', '#F97316'],
-  },
-  {
-    id: 'tidal-thinker',
-    name: 'TidalThinker',
-    emoji: '\u{1F30A}',
-    gradientColors: ['#06B6D4', '#3B82F6'],
-  },
-  {
-    id: 'night-hawk',
-    name: 'NightHawk',
-    emoji: '\u{1F985}',
-    gradientColors: ['#6366F1', '#8B5CF6'],
-  },
-  {
-    id: 'cosmic-drifter',
-    name: 'CosmicDrifter',
-    emoji: '\u{1F319}',
-    gradientColors: ['#8B5CF6', '#EC4899'],
-  },
-  {
-    id: 'ember-spark',
-    name: 'EmberSpark',
-    emoji: '\u{1F525}',
-    gradientColors: ['#EF4444', '#F97316'],
-  },
-];
 
 // ===========================================================================
 // EditProfileScreen
@@ -75,15 +29,56 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
   const { user } = useAuthStore();
 
-  const [displayName, setDisplayName] = useState(user?.displayName ?? 'UrbanFox');
-  const [bio, setBio] = useState('Exploring the city and meeting new people.');
-  const [selectedAvatar, setSelectedAvatar] = useState<string>('urban-fox');
+  const [displayName, setDisplayName] = useState(user?.displayName ?? '');
+  const [bio, setBio] = useState(user?.bio ?? '');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(
+    (user as any)?.avatar || 'urban-fox',
+  );
+  const [isSaving, setIsSaving] = useState(false);
 
-  const currentAvatar = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)!;
+  // Fetch profile from server on mount to get latest avatar/bio/displayName
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const profile = await authApi.getProfile();
+        if (mounted) {
+          if ((profile as any)?.avatar) setSelectedAvatar((profile as any).avatar);
+          if ((profile as any)?.displayName) setDisplayName((profile as any).displayName);
+          if ((profile as any)?.bio) setBio((profile as any).bio);
+        }
+      } catch {
+        // Use local state on error
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
-  const handleSave = () => {
-    showAlert('Profile Updated', 'Your profile changes have been saved.');
-    navigation.goBack();
+  const currentAvatar = getAvatarById(selectedAvatar);
+
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      // Send updates to backend profile
+      await authApi.updateProfile({
+        displayName,
+        bio,
+        avatar: selectedAvatar,
+      } as any);
+      // Optimistically update local store
+      useAuthStore.getState().updateUser({
+        displayName,
+        bio,
+      });
+      showAlert('Profile Updated', 'Your profile changes have been saved.');
+      navigation.goBack();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to save profile';
+      showAlert('Error', msg);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -134,7 +129,7 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <TouchableOpacity activeOpacity={0.7}>
             <Text style={[styles.changePhotoText, { color: theme.colors.primary }]}>
-              Upload Photo (Coming Soon)
+              Change Avatar
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -287,7 +282,11 @@ const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
             end={{ x: 1, y: 0 }}
             style={styles.saveButton}
           >
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            {isSaving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>

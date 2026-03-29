@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { enteringAnim } from '../../utils/animations';
 import { showAlert } from '../../utils/alert';
+import { authApi } from '../../api/auth';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'SocialPrefsSettings'>;
@@ -50,9 +51,24 @@ const SocialPrefsSettingsScreen: React.FC<Props> = ({ navigation }) => {
     setAgeRange(([min, max]) => [min, Math.min(99, max + 1)]);
   }, []);
 
-  const handleSave = () => {
-    showAlert('Preferences Saved', 'Your social preferences have been updated.');
-    navigation.goBack();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await authApi.updatePreferences({
+        socialMeetPref: meetPref,
+        socialAgeRange: { min: ageRange[0], max: ageRange[1] },
+        socialInteractionStyle: interactionStyle,
+      });
+      showAlert('Preferences Saved', 'Your social preferences have been updated.');
+      navigation.goBack();
+    } catch {
+      showAlert('Error', 'Failed to save preferences. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderChip = (
@@ -311,16 +327,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(236, 72, 153, 0.3)',
+    borderColor: 'rgba(249, 115, 22, 0.3)',
     marginBottom: 24,
   },
   modeBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
-    color: '#EC4899',
+    color: '#F97316',
   },
 
   // ---- Section ----

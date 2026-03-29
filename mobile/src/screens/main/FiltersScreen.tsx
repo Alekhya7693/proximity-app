@@ -12,6 +12,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { enteringAnim } from '../../utils/animations';
+import { useFiltersStore } from '../../store/filtersStore';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'Filters'>;
@@ -189,12 +190,13 @@ const DualSlider: React.FC<DualSliderProps> = ({
 // ===========================================================================
 const FiltersScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
+  const filtersStore = useFiltersStore();
 
-  // ---- State ----
-  const [radius, setRadius] = useState(300);
-  const [ageRange, setAgeRange] = useState<[number, number]>([21, 38]);
-  const [showMe, setShowMe] = useState<ShowMeOption>('Everyone');
-  const [vibeFilter, setVibeFilter] = useState<VibeOption>('Any');
+  // ---- State (initialized from store) ----
+  const [radius, setRadius] = useState(filtersStore.radius);
+  const [ageRange, setAgeRange] = useState<[number, number]>(filtersStore.ageRange);
+  const [showMe, setShowMe] = useState<ShowMeOption>(filtersStore.showMe as ShowMeOption);
+  const [vibeFilter, setVibeFilter] = useState<VibeOption>(filtersStore.vibeFilter as VibeOption);
 
   const handleReset = () => {
     setRadius(300);
@@ -204,7 +206,10 @@ const FiltersScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleApply = () => {
-    // TODO: persist to store and navigate back
+    filtersStore.setRadius(radius);
+    filtersStore.setAgeRange(ageRange);
+    filtersStore.setShowMe(showMe);
+    filtersStore.setVibeFilter(vibeFilter);
     navigation.goBack();
   };
 

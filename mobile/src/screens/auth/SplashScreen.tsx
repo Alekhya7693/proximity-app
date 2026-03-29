@@ -162,11 +162,11 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     buttonScale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
 
-  // Floating orb data
+  // Floating orb data — cyan-blue and orange tones
   const orbs: FloatingOrbProps[] = [
     {
       size: 160,
-      color: 'rgba(139, 92, 246, 0.08)',
+      color: 'rgba(14, 165, 233, 0.08)',
       initialX: -50,
       initialY: SCREEN_HEIGHT * 0.08,
       delay: 0,
@@ -174,7 +174,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 120,
-      color: 'rgba(236, 72, 153, 0.07)',
+      color: 'rgba(249, 115, 22, 0.07)',
       initialX: SCREEN_WIDTH - 80,
       initialY: SCREEN_HEIGHT * 0.12,
       delay: 400,
@@ -182,7 +182,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 80,
-      color: 'rgba(139, 92, 246, 0.06)',
+      color: 'rgba(14, 165, 233, 0.06)',
       initialX: SCREEN_WIDTH * 0.5,
       initialY: SCREEN_HEIGHT * 0.25,
       delay: 800,
@@ -190,7 +190,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 100,
-      color: 'rgba(236, 72, 153, 0.06)',
+      color: 'rgba(249, 115, 22, 0.06)',
       initialX: 30,
       initialY: SCREEN_HEIGHT * 0.55,
       delay: 200,
@@ -198,7 +198,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 70,
-      color: 'rgba(139, 92, 246, 0.05)',
+      color: 'rgba(14, 165, 233, 0.05)',
       initialX: SCREEN_WIDTH * 0.65,
       initialY: SCREEN_HEIGHT * 0.6,
       delay: 600,
@@ -206,7 +206,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 50,
-      color: 'rgba(236, 72, 153, 0.05)',
+      color: 'rgba(249, 115, 22, 0.05)',
       initialX: SCREEN_WIDTH * 0.15,
       initialY: SCREEN_HEIGHT * 0.75,
       delay: 1000,
@@ -214,7 +214,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 90,
-      color: 'rgba(139, 92, 246, 0.04)',
+      color: 'rgba(6, 182, 212, 0.04)',
       initialX: SCREEN_WIDTH * 0.8,
       initialY: SCREEN_HEIGHT * 0.42,
       delay: 300,
@@ -234,7 +234,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
       <SafeAreaView style={styles.safeArea}>
         {/* ── Centered Content ─────────────────────────────────────── */}
         <View style={styles.centerContent}>
-          {/* App Icon - Rounded Square with Gradient Border */}
+          {/* App Icon - Location pin with chat bubbles */}
           <Animated.View
             entering={enteringAnim(FadeInUp.duration(1000).delay(200))}
           >
@@ -244,27 +244,28 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
                 iconGlowStyle,
                 Platform.select({
                   ios: {
-                    shadowColor: '#8B5CF6',
+                    shadowColor: '#0EA5E9',
                     shadowOffset: { width: 0, height: 0 },
                   },
                   android: { elevation: 12 },
                   web: {
-                    boxShadow: '0 0 24px rgba(139, 92, 246, 0.5)',
+                    boxShadow: '0 0 24px rgba(14, 165, 233, 0.5)',
                   } as any,
                 }),
               ]}
             >
               <LinearGradient
-                colors={['#8B5CF6', '#EC4899']}
+                colors={['#0EA5E9', '#06B6D4']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.iconGradientBorder}
               >
                 <View style={styles.iconInner}>
-                  {/* Target/Circle Icon */}
-                  <View style={styles.targetIconOuter}>
-                    <View style={styles.targetIconMiddle}>
-                      <View style={styles.targetIconCenter} />
+                  {/* Location Pin Icon */}
+                  <View style={styles.pinIconOuter}>
+                    <View style={styles.pinIconInner}>
+                      <View style={styles.chatBubble} />
+                      <View style={styles.chatBubbleSmall} />
                     </View>
                   </View>
                 </View>
@@ -272,19 +273,15 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
             </Animated.View>
           </Animated.View>
 
-          {/* App Name - Gradient Text via Masked LinearGradient */}
+          {/* App Name - MYKO with dual-color text */}
           <Animated.View
             entering={enteringAnim(FadeInUp.duration(1000).delay(400))}
             style={styles.appNameWrapper}
           >
-            <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.appNameGradientBg}
-            >
-              <Text style={styles.appNameText}>Proximity</Text>
-            </LinearGradient>
+            <View style={styles.appNameRow}>
+              <Text style={styles.appNameBlue}>My</Text>
+              <Text style={styles.appNameOrange}>Ko</Text>
+            </View>
           </Animated.View>
 
           {/* Tagline */}
@@ -292,7 +289,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
             entering={enteringAnim(FadeInUp.duration(1000).delay(600))}
             style={styles.tagline}
           >
-            CONNECT. DISCOVER. BELONG.
+            MEET BY CHANCE. KONNECT BY CHOICE.
           </Animated.Text>
         </View>
 
@@ -311,7 +308,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
               style={styles.getStartedTouchable}
             >
               <LinearGradient
-                colors={['#8B5CF6', '#EC4899']}
+                colors={['#0EA5E9', '#F97316']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.getStartedButton}
@@ -340,7 +337,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0A1A',
+    backgroundColor: '#0B2545',
   },
   orbContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -375,72 +372,73 @@ const styles = StyleSheet.create({
   iconInner: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#0F0A1A',
+    backgroundColor: '#0B2545',
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  targetIconOuter: {
+  pinIconOuter: {
     width: 44,
-    height: 44,
-    borderRadius: 22,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  pinIconInner: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2.5,
-    borderColor: '#8B5CF6',
+    borderColor: '#0EA5E9',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  targetIconMiddle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2.5,
-    borderColor: '#C084FC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  targetIconCenter: {
-    width: 10,
+  chatBubble: {
+    width: 14,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#0EA5E9',
+    position: 'absolute',
+    left: 4,
+    top: 6,
+  },
+  chatBubbleSmall: {
+    width: 10,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F97316',
+    position: 'absolute',
+    right: 4,
+    top: 12,
   },
 
-  // ── App Name (Gradient Text) ────────────────────────────────────
+  // ── App Name (MYKO with dual colors) ───────────────────────────
   appNameWrapper: {
     marginBottom: 12,
-    overflow: 'hidden',
-    borderRadius: 4,
   },
-  appNameGradientBg: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+  appNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  appNameText: {
-    fontSize: 44,
+  appNameBlue: {
+    fontSize: 48,
     fontWeight: '800',
     letterSpacing: -1,
-    color: 'transparent',
-    // backgroundClip text trick works on web; on native, the gradient shows through
-    ...Platform.select({
-      web: {
-        backgroundClip: 'text',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-      } as any,
-      default: {
-        // On native, fallback to a solid gradient-like color.
-        // The LinearGradient behind provides the visual gradient.
-        color: '#FFFFFF',
-      },
-    }),
+    color: '#0EA5E9',
+  },
+  appNameOrange: {
+    fontSize: 48,
+    fontWeight: '800',
+    letterSpacing: -1,
+    color: '#F97316',
   },
 
   // ── Tagline ─────────────────────────────────────────────────────
   tagline: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 4,
-    color: '#6B7280',
+    letterSpacing: 3,
+    color: '#64748B',
     textAlign: 'center',
     marginTop: 4,
   },
@@ -455,14 +453,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 16,
       },
       android: { elevation: 8 },
       web: {
-        boxShadow: '0 8px 32px rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 8px 32px rgba(14, 165, 233, 0.4)',
       } as any,
     }),
   },
@@ -488,12 +486,12 @@ const styles = StyleSheet.create({
   },
   signInLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
   },
   signInLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#0EA5E9',
   },
 });
 

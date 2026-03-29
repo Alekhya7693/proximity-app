@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
+import { matchesApi } from '../../api/matches';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'MatchPrompt'>;
@@ -18,13 +20,32 @@ const AVATAR_SIZE = 90;
 const CARD_WIDTH = SCREEN_WIDTH - 64;
 
 const MatchPromptScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { matchId, userName, userAvatar, distance, compatibility } = route.params;
+  const { matchId, userId, userName, userAvatar, distance, compatibility } = route.params;
   const theme = useTheme();
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSayHi = () => {
-    // Navigate to ChatDetail with the match info
-    navigation.replace('Main', {
+  const handleSayHi = async () => {
+    setIsSending(true);
+    try {
+      await matchesApi.sendHi(matchId);
+    } catch {
+      // Still navigate to chat even if greet API fails
+    } finally {
+      setIsSending(false);
+    }
+    // Navigate to ChatDetail with the matched user
+    (navigation as any).replace('Main', {
       screen: 'ChatList',
+      params: {
+        screen: 'ChatDetail',
+        params: {
+          matchId,
+          recipientId: userId,
+          recipientName: userName,
+          recipientAvatar: userAvatar,
+          isActive: true,
+        },
+      },
     });
   };
 
@@ -166,7 +187,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 24,
@@ -275,7 +296,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 12,

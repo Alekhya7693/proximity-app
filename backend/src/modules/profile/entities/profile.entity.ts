@@ -38,6 +38,12 @@ export class ProfileEntity {
   @JoinColumn({ name: 'userId' })
   user: UserEntity;
 
+  @Column({ length: 100, nullable: true })
+  displayName: string | null;
+
+  @Column({ length: 50, nullable: true })
+  avatar: string | null;
+
   @Column({ type: 'text', nullable: true })
   bio: string | null;
 

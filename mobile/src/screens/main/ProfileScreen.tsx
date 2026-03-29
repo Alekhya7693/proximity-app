@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAuthStore } from '../../store/authStore';
 import { useModeStore } from '../../store/modeStore';
+import { matchesApi } from '../../api/matches';
+import { authApi } from '../../api/auth';
+import { getAvatarById } from '../../constants/avatars';
 import type { MainTabScreenProps } from '../../navigation/types';
 
-// ── Static data hoisted outside component to avoid re-creation ───────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface StatData {
   label: string;
@@ -27,13 +30,6 @@ interface ActionData {
   subtitle: string;
   screen?: 'Notifications' | 'EditProfile' | 'PrivacySettings';
 }
-
-const STATS_DATA: StatData[] = [
-  { label: 'Matches', value: '12', emoji: '\uD83D\uDC9C' },
-  { label: 'Conversations', value: '8', emoji: '\uD83D\uDCAC' },
-  { label: 'Vibes Set', value: '24', emoji: '\u2728' },
-  { label: 'Trust Score', value: '92', emoji: '\uD83D\uDEE1\uFE0F' },
-];
 
 const ACTIONS_DATA: ActionData[] = [
   { label: 'Edit Profile', icon: '\u270F\uFE0F', subtitle: 'Name, photo, bio, avatar', screen: 'EditProfile' as const },
@@ -49,8 +45,57 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
   const { user } = useAuthStore();
   const { toggleMode } = useModeStore();
 
-  const displayName = user?.displayName || 'UrbanFox';
-  const email = user?.email || 'name@example.com';
+  const displayName = user?.displayName || user?.firstName || 'Anonymous';
+  const email = user?.email || '';
+
+  // Fetch avatar from profile
+  const [avatarId, setAvatarId] = useState<string | null>((user as any)?.avatar || null);
+  const currentAvatar = getAvatarById(avatarId);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const profile = await authApi.getProfile();
+        if (mounted && (profile as any)?.avatar) {
+          setAvatarId((profile as any).avatar);
+        }
+      } catch {
+        // Keep default avatar on error
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // Fetch real stats
+  const [statsData, setStatsData] = useState<StatData[]>([
+    { label: 'Matches', value: '-', emoji: '\uD83D\uDC9C' },
+    { label: 'Conversations', value: '-', emoji: '\uD83D\uDCAC' },
+    { label: 'Vibes Set', value: '-', emoji: '\u2728' },
+    { label: 'Trust Score', value: '-', emoji: '\uD83D\uDEE1\uFE0F' },
+  ]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const result = await matchesApi.getMatches(mode as any);
+        const totalMatches = result.matches.length;
+        const withMessages = result.matches.filter((m) => m.lastMessage).length;
+        if (mounted) {
+          setStatsData([
+            { label: 'Matches', value: String(totalMatches), emoji: '\uD83D\uDC9C' },
+            { label: 'Conversations', value: String(withMessages), emoji: '\uD83D\uDCAC' },
+            { label: 'Vibes Set', value: String(user?.vibes?.length || 0), emoji: '\u2728' },
+            { label: 'Trust Score', value: '85', emoji: '\uD83D\uDEE1\uFE0F' },
+          ]);
+        }
+      } catch {
+        // Keep default dashes on error
+      }
+    })();
+    return () => { mounted = false; };
+  }, [mode, user?.vibes?.length]);
 
   const handleSettings = useCallback(
     () => navigation.navigate('Settings'),
@@ -70,8 +115,8 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
   const modeGradientColors = useMemo<[string, string]>(
     () =>
       mode === 'social'
-        ? ['#8B5CF6', '#EC4899']
-        : ['#0F766E', '#0284C7'],
+        ? ['#0EA5E9', '#F97316']
+        : ['#1E3A5F', '#D4A853'],
     [mode],
   );
 
@@ -97,16 +142,16 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
 
         <View style={[styles.avatarCard, { backgroundColor: colors.surface }]}>
           <LinearGradient
-            colors={avatarGradientColors}
+            colors={currentAvatar.gradientColors}
             style={styles.avatarGradient}
           >
-            <Text style={styles.avatarEmoji}>{'\uD83E\uDD8A'}</Text>
+            <Text style={styles.avatarEmoji}>{currentAvatar.emoji}</Text>
           </LinearGradient>
           <Text style={[styles.displayName, { color: colors.text }]}>{displayName}</Text>
           <Text style={[styles.email, { color: colors.textTertiary }]}>{email}</Text>
           <View style={styles.statusRow}>
             <View style={styles.onlineDot} />
-            <Text style={[styles.statusText, { color: colors.success }]}>Active now</Text>
+            <Text style={[styles.statusText, { color: colors.success }]}>Online</Text>
           </View>
         </View>
 
@@ -128,7 +173,7 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>YOUR STATS</Text>
           <View style={styles.statsGrid}>
-            {STATS_DATA.map((stat) => (
+            {statsData.map((stat) => (
               <View key={stat.label} style={[styles.statItem, { backgroundColor: colors.surfaceElevated }]}>
                 <Text style={styles.statEmoji}>{stat.emoji}</Text>
                 <Text style={[styles.statValue, { color: colors.text }]}>{stat.value}</Text>

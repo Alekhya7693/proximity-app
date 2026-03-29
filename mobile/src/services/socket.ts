@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import { storage } from '../utils/storage';
+import { env } from '../config/env';
 
-const SOCKET_URL = process.env.SOCKET_URL || 'http://localhost:3000';
+const SOCKET_URL = env.SOCKET_URL;
 
 type MessageHandler = (data: {
   id: string;
@@ -84,17 +85,17 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket?.id);
+      if (__DEV__) console.log('Socket connected:', this.socket?.id);
       this.handlers.onConnect?.();
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      console.log('Socket disconnected:', reason);
+      if (__DEV__) console.log('Socket disconnected:', reason);
       this.handlers.onDisconnect?.(reason);
     });
 
     this.socket.on('connect_error', (error: Error) => {
-      console.error('Socket connection error:', error.message);
+      console.warn('Socket connection error:', error.message);
     });
 
     this.socket.on('new_message', (data) => {

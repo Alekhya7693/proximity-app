@@ -31,7 +31,7 @@ const FAQ_ITEMS: FAQItem[] = [
     id: '1',
     question: 'How does proximity matching work?',
     answer:
-      'Proximity uses your location to find people nearby within your discovery radius. When two users are within range and both show interest, a match is created. Chat is only available while both users remain within 300m of the match location.',
+      'MYKO uses your location to find people nearby within your discovery radius. When two users are within range and both show interest, a match is created. Chat is only available while both users remain within 300m of the match location.',
   },
   {
     id: '2',
@@ -79,7 +79,7 @@ const HelpCenterScreen: React.FC<Props> = ({ navigation }) => {
   const handleContactSupport = () => {
     showAlert(
       'Contact Support',
-      'Email us at support@proximity.app and we will get back to you within 24 hours.',
+      'Email us at support@myko.app and we will get back to you within 24 hours.',
     );
   };
 

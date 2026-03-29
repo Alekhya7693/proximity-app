@@ -30,16 +30,13 @@ interface UserStat {
   value: string;
 }
 
-const MOCK_REPORT_HISTORY: ReportHistoryItem[] = [
-  { id: 'rh1', type: 'Harassment', time: '5m ago' },
-  { id: 'rh2', type: 'Spam', time: '2 days ago' },
-  { id: 'rh3', type: 'Inappropriate behavior', time: '5 days ago' },
-];
+// Data will be fetched from admin API in production.
+const REPORT_HISTORY: ReportHistoryItem[] = [];
 
-const MOCK_USER_STATS: UserStat[] = [
-  { label: 'Joined', value: '14 days' },
-  { label: 'Reports', value: '3' },
-  { label: 'Trust Score', value: '42/100' },
+const USER_STATS: UserStat[] = [
+  { label: 'Joined', value: '--' },
+  { label: 'Reports', value: '0' },
+  { label: 'Trust Score', value: '--' },
 ];
 
 // ===========================================================================
@@ -131,13 +128,10 @@ const AdminUserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
             <View style={styles.userInfo}>
               <Text style={[styles.userName, { color: colors.text }]}>
-                ShadowViper
-              </Text>
-              <Text style={[styles.userEmail, { color: colors.textTertiary }]}>
-                shadow.viper@email.com
+                User
               </Text>
               <Text style={[styles.userId, { color: colors.textTertiary }]}>
-                ID: {userId || 'usr_8d4f2a'}
+                ID: {userId}
               </Text>
             </View>
           </View>
@@ -164,7 +158,7 @@ const AdminUserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           entering={enteringAnim(FadeInDown.duration(500).delay(200))}
           style={styles.statsRow}
         >
-          {MOCK_USER_STATS.map((stat) => (
+          {USER_STATS.map((stat) => (
             <View
               key={stat.label}
               style={[
@@ -191,7 +185,7 @@ const AdminUserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           style={styles.section}
         >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Report History ({MOCK_REPORT_HISTORY.length})
+            Report History ({REPORT_HISTORY.length})
           </Text>
           <View
             style={[
@@ -202,12 +196,12 @@ const AdminUserDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               },
             ]}
           >
-            {MOCK_REPORT_HISTORY.map((report, index) => (
+            {REPORT_HISTORY.map((report, index) => (
               <View
                 key={report.id}
                 style={[
                   styles.historyRow,
-                  index < MOCK_REPORT_HISTORY.length - 1 && {
+                  index < REPORT_HISTORY.length - 1 && {
                     borderBottomWidth: StyleSheet.hairlineWidth,
                     borderBottomColor: colors.border,
                   },

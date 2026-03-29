@@ -64,6 +64,17 @@ export class MatchController {
     return this.matchService.getLikesReceived(userId);
   }
 
+  @Get(':matchId')
+  @ApiOperation({ summary: 'Get match details by ID' })
+  @ApiResponse({ status: 200, description: 'Match details' })
+  @ApiResponse({ status: 404, description: 'Match not found' })
+  async getMatch(
+    @CurrentUser('id') userId: string,
+    @Param('matchId', ParseUUIDPipe) matchId: string,
+  ) {
+    return this.matchService.getMatchById(userId, matchId);
+  }
+
   @Delete(':matchId')
   @ApiOperation({ summary: 'Unmatch from a user' })
   @ApiResponse({ status: 200, description: 'Unmatched successfully' })

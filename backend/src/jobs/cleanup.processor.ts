@@ -107,18 +107,19 @@ export class CleanupProcessor {
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    // Clear PostGIS locations for inactive users
+    // Clear lat/lng locations for inactive users
     const result = await this.sessionRepository.manager
       .createQueryBuilder()
       .update('users')
       .set({
-        lastLocation: null,
+        lastLatitude: null,
+        lastLongitude: null,
         lastLocationUpdatedAt: null,
       })
       .where('lastLocationUpdatedAt < :date', {
         date: twentyFourHoursAgo,
       })
-      .andWhere('lastLocation IS NOT NULL')
+      .andWhere('lastLatitude IS NOT NULL')
       .execute();
 
     this.logger.log(

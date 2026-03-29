@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,54 +7,20 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
+import { useModeStore } from '../../store/modeStore';
+import { matchesApi, Match } from '../../api/matches';
 import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'Matches'>;
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
-
-interface WaitingMatch {
-  id: string;
-  displayName: string;
-  emoji: string;
-  timeAgo: string;
-  hasNotification: boolean;
-}
-
-interface MatchItem {
-  id: string;
-  displayName: string;
-  age: number;
-  emoji: string;
-  compatibility: number;
-  timeAgo: string;
-  isChatting: boolean;
-}
-
-const WAITING_MATCHES: WaitingMatch[] = [
-  { id: 'w1', displayName: 'UrbanFox', emoji: '\uD83E\uDD8A', timeAgo: 'Just matched', hasNotification: true },
-  { id: 'w2', displayName: 'NeonDrift', emoji: '\uD83C\uDF1F', timeAgo: '15m ago', hasNotification: true },
-  { id: 'w3', displayName: 'WildPetal', emoji: '\uD83C\uDF3A', timeAgo: '1h ago', hasNotification: false },
-  { id: 'w4', displayName: 'CosmicRay', emoji: '\uD83C\uDF0C', timeAgo: '2h ago', hasNotification: false },
-  { id: 'w5', displayName: 'TidalWave', emoji: '\uD83C\uDF0A', timeAgo: '3h ago', hasNotification: true },
-];
-
-const ALL_MATCHES: MatchItem[] = [
-  { id: 'm1', displayName: 'UrbanFox', age: 27, emoji: '\uD83E\uDD8A', compatibility: 94, timeAgo: '2m ago', isChatting: true },
-  { id: 'm2', displayName: 'NeonDrift', age: 24, emoji: '\uD83C\uDF1F', compatibility: 87, timeAgo: '15m ago', isChatting: false },
-  { id: 'm3', displayName: 'WildPetal', age: 29, emoji: '\uD83C\uDF3A', compatibility: 91, timeAgo: '1h ago', isChatting: true },
-  { id: 'm4', displayName: 'CosmicRay', age: 26, emoji: '\uD83C\uDF0C', compatibility: 83, timeAgo: '2h ago', isChatting: false },
-  { id: 'm5', displayName: 'TidalWave', age: 31, emoji: '\uD83C\uDF0A', compatibility: 79, timeAgo: '4h ago', isChatting: false },
-  { id: 'm6', displayName: 'LunarMist', age: 23, emoji: '\uD83C\uDF19', compatibility: 88, timeAgo: '6h ago', isChatting: true },
-  { id: 'm7', displayName: 'EchoBlaze', age: 28, emoji: '\uD83D\uDD25', compatibility: 76, timeAgo: '1d ago', isChatting: false },
-];
-
 // ── Row height constant for getItemLayout ────────────────────────────────────
-const MATCH_ROW_HEIGHT = 80; // row padding (14*2) + avatar (52) = 80
+const MATCH_ROW_HEIGHT = 80;
 const SEPARATOR_HEIGHT = 8;
 
 // ── Memoized Separator ───────────────────────────────────────────────────────
@@ -64,8 +30,8 @@ ItemSeparator.displayName = 'ItemSeparator';
 // ── Memoized Match Row ───────────────────────────────────────────────────────
 
 interface MatchRowProps {
-  item: MatchItem;
-  onPress: (match: MatchItem) => void;
+  item: Match;
+  onPress: (match: Match) => void;
   surfaceColor: string;
   primaryColor: string;
   textColor: string;
@@ -86,6 +52,8 @@ const MatchRow = React.memo<MatchRowProps>(
     gradientEnd,
   }) => {
     const handlePress = useCallback(() => onPress(item), [onPress, item]);
+    const hasChatted = !!item.lastMessage;
+    const timeAgo = formatTimeAgo(item.matchedAt);
 
     return (
       <TouchableOpacity
@@ -100,14 +68,16 @@ const MatchRow = React.memo<MatchRowProps>(
             { backgroundColor: primaryColor + '10' },
           ]}
         >
-          <Text style={styles.matchEmoji}>{item.emoji}</Text>
+          <Text style={styles.matchEmoji}>
+            {item.profilePhoto ? '\uD83D\uDC64' : '\uD83D\uDC64'}
+          </Text>
         </View>
 
         {/* Info */}
         <View style={styles.matchInfo}>
           <View style={styles.matchNameRow}>
             <Text style={[styles.matchName, { color: textColor }]}>
-              {item.displayName}, {item.age}
+              {item.displayName}
             </Text>
             <View
               style={[
@@ -118,17 +88,17 @@ const MatchRow = React.memo<MatchRowProps>(
               <Text
                 style={[styles.matchPercentText, { color: primaryColor }]}
               >
-                {item.compatibility}%
+                {item.compatibilityScore}%
               </Text>
             </View>
           </View>
           <Text style={[styles.matchTimeAgo, { color: tertiaryColor }]}>
-            {item.timeAgo}
+            {timeAgo}
           </Text>
         </View>
 
         {/* Action Button */}
-        {item.isChatting ? (
+        {hasChatted ? (
           <LinearGradient
             colors={[gradientStart, gradientEnd]}
             start={{ x: 0, y: 0 }}
@@ -151,37 +121,96 @@ const MatchRow = React.memo<MatchRowProps>(
   },
   (prev, next) =>
     prev.item.id === next.item.id &&
-    prev.item.isChatting === next.item.isChatting &&
+    prev.item.lastMessage?.text === next.item.lastMessage?.text &&
     prev.surfaceColor === next.surfaceColor &&
     prev.primaryColor === next.primaryColor,
 );
 
 MatchRow.displayName = 'MatchRow';
 
+// ── Time formatting ─────────────────────────────────────────────────────────
+
+function formatTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 const MatchesScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
+  const { mode } = useModeStore();
+
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ── Fetch matches ─────────────────────────────────────────────────────────
+
+  const loadMatches = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    setError(null);
+    try {
+      const result = await matchesApi.getMatches(mode);
+      setMatches(result.matches);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Unable to load matches';
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadMatches(true);
+  }, [loadMatches]);
+
+  // ── Separate waiting (no chat) and active matches ─────────────────────────
+
+  const waitingMatches = useMemo(
+    () => matches.filter((m) => !m.lastMessage),
+    [matches],
+  );
+
+  const allMatches = matches;
+
+  // ── Navigation handlers ───────────────────────────────────────────────────
 
   const handleMatchPress = useCallback(
-    (match: MatchItem) => {
-      if (match.isChatting) {
+    (match: Match) => {
+      if (match.lastMessage) {
         (navigation as any).navigate('ChatList', {
           screen: 'ChatDetail',
           params: {
             matchId: match.id,
+            recipientId: match.userId,
             recipientName: match.displayName,
-            recipientAvatar: match.emoji,
+            recipientAvatar: match.profilePhoto || '\uD83D\uDC64',
             isActive: true,
           },
         });
       } else {
         navigation.navigate('MatchPrompt', {
           matchId: match.id,
+          userId: match.userId,
           userName: match.displayName,
-          userAvatar: match.emoji,
-          distance: 80,
-          compatibility: match.compatibility,
+          userAvatar: match.profilePhoto || '\uD83D\uDC64',
+          distance: match.distance || 0,
+          compatibility: match.compatibilityScore,
         });
       }
     },
@@ -189,64 +218,23 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const handleWaitingPress = useCallback(
-    (waiting: WaitingMatch) => {
+    (match: Match) => {
       navigation.navigate('MatchPrompt', {
-        matchId: waiting.id,
-        userName: waiting.displayName,
-        userAvatar: waiting.emoji,
-        distance: 120,
-        compatibility: 85,
+        matchId: match.id,
+        userId: match.userId,
+        userName: match.displayName,
+        userAvatar: match.profilePhoto || '\uD83D\uDC64',
+        distance: match.distance || 0,
+        compatibility: match.compatibilityScore,
       });
     },
     [navigation],
   );
 
-  // ── Waiting Avatar Item ─────────────────────────────────────────────────
-
-  const renderWaitingItem = useCallback(
-    ({ item }: { item: WaitingMatch }) => (
-      <TouchableOpacity
-        style={styles.waitingItem}
-        onPress={() => handleWaitingPress(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.waitingAvatarContainer}>
-          <View
-            style={[
-              styles.waitingAvatar,
-              {
-                backgroundColor: theme.colors.primary + '15',
-                borderColor: theme.colors.primary + '40',
-              },
-            ]}
-          >
-            <Text style={styles.waitingEmoji}>{item.emoji}</Text>
-          </View>
-          {item.hasNotification && (
-            <View style={styles.notificationDot} />
-          )}
-        </View>
-        <Text
-          style={[styles.waitingName, { color: theme.colors.text }]}
-          numberOfLines={1}
-        >
-          {item.displayName}
-        </Text>
-        <Text
-          style={[styles.waitingTime, { color: theme.colors.textTertiary }]}
-          numberOfLines={1}
-        >
-          {item.timeAgo}
-        </Text>
-      </TouchableOpacity>
-    ),
-    [handleWaitingPress, theme.colors.primary, theme.colors.text, theme.colors.textTertiary],
-  );
-
-  // ── Match Row Render ───────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   const renderMatchItem = useCallback(
-    ({ item }: { item: MatchItem }) => (
+    ({ item }: { item: Match }) => (
       <MatchRow
         item={item}
         onPress={handleMatchPress}
@@ -261,10 +249,10 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
     [handleMatchPress, theme.colors],
   );
 
-  const keyExtractor = useCallback((item: MatchItem) => item.id, []);
+  const keyExtractor = useCallback((item: Match) => item.id, []);
 
   const getItemLayout = useCallback(
-    (_data: ArrayLike<MatchItem> | null | undefined, index: number) => ({
+    (_data: ArrayLike<Match> | null | undefined, index: number) => ({
       length: MATCH_ROW_HEIGHT,
       offset: (MATCH_ROW_HEIGHT + SEPARATOR_HEIGHT) * index,
       index,
@@ -273,34 +261,75 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   const totalBadgeText = useMemo(
-    () => `${ALL_MATCHES.length} total`,
-    [],
+    () => `${allMatches.length} total`,
+    [allMatches.length],
+  );
+
+  const renderWaitingItem = useCallback(
+    (match: Match) => (
+      <TouchableOpacity
+        key={match.id}
+        style={styles.waitingItem}
+        onPress={() => handleWaitingPress(match)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.waitingAvatarContainer}>
+          <View
+            style={[
+              styles.waitingAvatar,
+              {
+                backgroundColor: theme.colors.primary + '15',
+                borderColor: theme.colors.primary + '40',
+              },
+            ]}
+          >
+            <Text style={styles.waitingEmoji}>{'\uD83D\uDC64'}</Text>
+          </View>
+          {match.isOnline && (
+            <View style={styles.notificationDot} />
+          )}
+        </View>
+        <Text
+          style={[styles.waitingName, { color: theme.colors.text }]}
+          numberOfLines={1}
+        >
+          {match.displayName}
+        </Text>
+        <Text
+          style={[styles.waitingTime, { color: theme.colors.textTertiary }]}
+          numberOfLines={1}
+        >
+          {formatTimeAgo(match.matchedAt)}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [handleWaitingPress, theme.colors],
   );
 
   const renderListHeader = useCallback(
     () => (
       <View>
         {/* Waiting to Say Hi Section */}
-        <View style={styles.sectionHeader}>
-          <Text
-            style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
-          >
-            WAITING TO SAY HI
-          </Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.waitingScroll}
-          style={styles.waitingContainer}
-        >
-          {WAITING_MATCHES.map((item) => (
-            <View key={item.id}>
-              {renderWaitingItem({ item })}
+        {waitingMatches.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text
+                style={[styles.sectionLabel, { color: theme.colors.textTertiary }]}
+              >
+                WAITING TO SAY HI
+              </Text>
             </View>
-          ))}
-        </ScrollView>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.waitingScroll}
+              style={styles.waitingContainer}
+            >
+              {waitingMatches.map(renderWaitingItem)}
+            </ScrollView>
+          </>
+        )}
 
         {/* All Matches Label */}
         <View style={[styles.sectionHeader, { marginTop: 8 }]}>
@@ -312,8 +341,85 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
     ),
-    [theme.colors.textTertiary, renderWaitingItem],
+    [theme.colors.textTertiary, waitingMatches, renderWaitingItem],
   );
+
+  // ── Loading / Error / Empty ───────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['top']}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Matches
+          </Text>
+        </View>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.centerStateText, { color: theme.colors.textSecondary }]}>
+            Loading matches...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['top']}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Matches
+          </Text>
+        </View>
+        <View style={styles.centerState}>
+          <Text style={styles.centerStateEmoji}>{'\u26A0\uFE0F'}</Text>
+          <Text style={[styles.centerStateTitle, { color: theme.colors.text }]}>
+            Unable to load matches
+          </Text>
+          <Text style={[styles.centerStateText, { color: theme.colors.textSecondary }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => loadMatches()}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (allMatches.length === 0) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['top']}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Matches
+          </Text>
+        </View>
+        <View style={styles.centerState}>
+          <Text style={styles.centerStateEmoji}>{'\uD83D\uDC9C'}</Text>
+          <Text style={[styles.centerStateTitle, { color: theme.colors.text }]}>
+            No matches yet
+          </Text>
+          <Text style={[styles.centerStateText, { color: theme.colors.textSecondary }]}>
+            Start swiping on the Discover tab to find your first match!
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -341,7 +447,7 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Match List */}
       <FlatList
-        data={ALL_MATCHES}
+        data={allMatches}
         renderItem={renderMatchItem}
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}
@@ -353,6 +459,13 @@ const MatchesScreen: React.FC<Props> = ({ navigation }) => {
         maxToRenderPerBatch={10}
         windowSize={5}
         initialNumToRender={7}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
       />
     </SafeAreaView>
   );
@@ -388,6 +501,40 @@ const styles = StyleSheet.create({
   },
   totalBadgeText: {
     fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Center states (loading / error / empty)
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  centerStateEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  centerStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  centerStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
   },
 
@@ -438,7 +585,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#10B981',
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },

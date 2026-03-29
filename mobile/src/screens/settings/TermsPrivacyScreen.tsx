@@ -29,7 +29,7 @@ const TERMS_SECTIONS: LegalSection[] = [
     id: 'tos-1',
     title: '1. Acceptance of Terms',
     content:
-      'By accessing or using the Proximity application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the application.',
+      'By accessing or using the MYKO application, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the application.',
   },
   {
     id: 'tos-2',
@@ -47,7 +47,7 @@ const TERMS_SECTIONS: LegalSection[] = [
     id: 'tos-4',
     title: '4. Content and Intellectual Property',
     content:
-      'You retain ownership of content you create. By posting content, you grant Proximity a non-exclusive license to display it within the app. All app designs, logos, and features are the intellectual property of Proximity.',
+      'You retain ownership of content you create. By posting content, you grant MYKO a non-exclusive license to display it within the app. All app designs, logos, and features are the intellectual property of MYKO.',
   },
   {
     id: 'tos-5',
@@ -86,7 +86,7 @@ const PRIVACY_SECTIONS: LegalSection[] = [
     id: 'pp-5',
     title: '5. Contact Us',
     content:
-      'For any privacy-related questions or concerns, please contact our Data Protection Officer at privacy@proximity.app.',
+      'For any privacy-related questions or concerns, please contact our Data Protection Officer at privacy@myko.app.',
   },
 ];
 
@@ -213,7 +213,7 @@ const TermsPrivacyScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.lastUpdated}
         >
           <Text style={[styles.lastUpdatedText, { color: theme.colors.textTertiary }]}>
-            Last updated: March 1, 2026
+            Last updated: March 25, 2026
           </Text>
         </Animated.View>
       </ScrollView>

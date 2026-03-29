@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeContext';
 import { enteringAnim } from '../../utils/animations';
+import { authApi } from '../../api/auth';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'PrivacySettings'>;
@@ -39,6 +40,12 @@ const PrivacySettingsScreen: React.FC<Props> = ({ navigation }) => {
   const [profileVisibility, setProfileVisibility] = useState(true);
   const [readReceipts, setReadReceipts] = useState(true);
 
+  const persistPrivacy = (key: string, value: boolean) => {
+    authApi.updatePreferences({ [key]: value }).catch(() => {
+      // Silently fail — settings are optimistically applied
+    });
+  };
+
   // ---------------------------------------------------------------------------
   // Section Definitions
   // ---------------------------------------------------------------------------
@@ -49,7 +56,7 @@ const PrivacySettingsScreen: React.FC<Props> = ({ navigation }) => {
       title: 'Show Online Status',
       subtitle: 'Let others see when you are active',
       value: showOnlineStatus,
-      onToggle: setShowOnlineStatus,
+      onToggle: (v: boolean) => { setShowOnlineStatus(v); persistPrivacy('showOnlineStatus', v); },
     },
     {
       id: 'profile-visibility',
@@ -57,7 +64,7 @@ const PrivacySettingsScreen: React.FC<Props> = ({ navigation }) => {
       title: 'Profile Visibility',
       subtitle: 'Appear in discovery feed to nearby users',
       value: profileVisibility,
-      onToggle: setProfileVisibility,
+      onToggle: (v: boolean) => { setProfileVisibility(v); persistPrivacy('profileVisibility', v); },
     },
   ];
 
@@ -68,7 +75,7 @@ const PrivacySettingsScreen: React.FC<Props> = ({ navigation }) => {
       title: 'Location Sharing',
       subtitle: 'Share your proximity zone with matches',
       value: locationSharing,
-      onToggle: setLocationSharing,
+      onToggle: (v: boolean) => { setLocationSharing(v); persistPrivacy('locationSharing', v); },
     },
   ];
 
@@ -79,7 +86,7 @@ const PrivacySettingsScreen: React.FC<Props> = ({ navigation }) => {
       title: 'Read Receipts',
       subtitle: 'Show when you have read messages',
       value: readReceipts,
-      onToggle: setReadReceipts,
+      onToggle: (v: boolean) => { setReadReceipts(v); persistPrivacy('readReceipts', v); },
     },
   ];
 

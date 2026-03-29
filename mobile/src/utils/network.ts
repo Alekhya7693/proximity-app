@@ -1,5 +1,5 @@
 /**
- * Production-grade network utility for Proximity app.
+ * Production-grade network utility for MYKO app.
  *
  * Features:
  * - Request timeout (10s default)

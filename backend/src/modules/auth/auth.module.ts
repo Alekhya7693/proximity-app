@@ -19,7 +19,7 @@ import { SessionEntity } from './entities/session.entity';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          issuer: configService.get<string>('JWT_ISSUER', 'proximity'),
+          issuer: configService.get<string>('JWT_ISSUER', 'myko'),
         },
       }),
     }),

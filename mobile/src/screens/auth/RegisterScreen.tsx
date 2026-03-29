@@ -262,7 +262,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const orbs: FloatingOrbProps[] = [
     {
       size: 120,
-      color: 'rgba(139, 92, 246, 0.07)',
+      color: 'rgba(14, 165, 233, 0.07)',
       initialX: -30,
       initialY: 60,
       delay: 0,
@@ -270,7 +270,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 80,
-      color: 'rgba(236, 72, 153, 0.06)',
+      color: 'rgba(249, 115, 22, 0.06)',
       initialX: SCREEN_WIDTH - 60,
       initialY: 120,
       delay: 400,
@@ -278,7 +278,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 60,
-      color: 'rgba(139, 92, 246, 0.05)',
+      color: 'rgba(14, 165, 233, 0.05)',
       initialX: SCREEN_WIDTH * 0.4,
       initialY: SCREEN_HEIGHT * 0.7,
       delay: 800,
@@ -286,7 +286,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 90,
-      color: 'rgba(236, 72, 153, 0.05)',
+      color: 'rgba(249, 115, 22, 0.05)',
       initialX: 20,
       initialY: SCREEN_HEIGHT * 0.5,
       delay: 600,
@@ -621,7 +621,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                 I agree to the{' '}
                 <Text
                   style={styles.linkText}
-                  onPress={() => Linking.openURL('https://proximity.app/terms')}
+                  onPress={() => Linking.openURL('https://myko.app/terms')}
                 >
                   Terms & Conditions
                 </Text>
@@ -629,7 +629,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                 <Text
                   style={styles.linkText}
                   onPress={() =>
-                    Linking.openURL('https://proximity.app/privacy')
+                    Linking.openURL('https://myko.app/privacy')
                   }
                 >
                   Privacy Policy
@@ -659,7 +659,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
                 ]}
               >
                 <LinearGradient
-                  colors={['#8B5CF6', '#EC4899']}
+                  colors={['#0EA5E9', '#F97316']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.gradientButton}
@@ -698,7 +698,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0A1A',
+    backgroundColor: '#0B2545',
   },
   flex: {
     flex: 1,
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2D2340',
+    backgroundColor: '#1B5B8A',
   },
   dividerText: {
     marginHorizontal: 16,
@@ -803,25 +803,25 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1128',
+    backgroundColor: '#133E68',
     borderWidth: 1.5,
-    borderColor: '#2D2340',
+    borderColor: '#1B5B8A',
     borderRadius: 14,
     paddingHorizontal: 16,
     minHeight: 54,
   },
   inputWrapperFocused: {
-    borderColor: '#8B5CF6',
+    borderColor: '#0EA5E9',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
       },
       android: { elevation: 2 },
       web: {
-        boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.1)',
+        boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
       } as any,
     }),
   },
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
   showPasswordText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8B5CF6',
+    color: '#0EA5E9',
   },
   errorText: {
     fontSize: 12,
@@ -869,15 +869,15 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#2D2340',
+    borderColor: '#1B5B8A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     marginTop: 1,
   },
   checkboxChecked: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
+    backgroundColor: '#0EA5E9',
+    borderColor: '#0EA5E9',
   },
   checkboxError: {
     borderColor: '#EF4444',
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   linkText: {
-    color: '#8B5CF6',
+    color: '#0EA5E9',
     fontWeight: '600',
   },
 
@@ -905,14 +905,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
       },
       android: { elevation: 6 },
       web: {
-        boxShadow: '0 6px 24px rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 6px 24px rgba(14, 165, 233, 0.4)',
       } as any,
     }),
   },
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
   footerLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#0EA5E9',
   },
 });
 

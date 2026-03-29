@@ -52,9 +52,9 @@ async function bootstrap() {
 
   // Swagger documentation
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Proximity API')
-    .setDescription('Location-based social/professional networking API')
-    .setVersion('0.1.0')
+    .setTitle('MYKO API')
+    .setDescription('MYKO — Location-based social/professional networking API')
+    .setVersion('1.0.0')
     .addBearerAuth(
       {
         type: 'http',
@@ -84,7 +84,7 @@ async function bootstrap() {
   });
 
   await app.listen(port, '0.0.0.0');
-  logger.log(`Proximity API running on port ${port}`);
+  logger.log(`MYKO API running on port ${port}`);
   logger.log(`Swagger docs available at http://localhost:${port}/docs`);
   logger.log(`Environment: ${configService.get<string>('NODE_ENV', 'development')}`);
 }

@@ -272,6 +272,33 @@ export class SafetyService {
     return !!block;
   }
 
+  // ─── Support Reports ─────────────────────────────────────
+
+  /**
+   * Submit a support/bug report.
+   */
+  async submitSupportReport(
+    userId: string,
+    category: string,
+    description: string,
+  ): Promise<{ message: string; id: string }> {
+    // Store as a self-report with the category in the description
+    const report = this.reportRepository.create({
+      reporterId: userId,
+      reportedUserId: userId, // Self-report for support issues
+      reason: ReportReason.OTHER,
+      description: `[${category}] ${description}`,
+      status: ReportStatus.PENDING,
+    });
+
+    const saved = await this.reportRepository.save(report);
+    this.logger.log(
+      `Support report submitted by user ${userId}: [${category}]`,
+    );
+
+    return { message: 'Report submitted successfully', id: saved.id };
+  }
+
   /**
    * Get all user IDs that a user has blocked or has been blocked by.
    */

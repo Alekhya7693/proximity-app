@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { IsString, MinLength } from 'class-validator';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -20,6 +21,15 @@ import { LoginDto, RefreshTokenDto, VerifyEmailDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, Public } from '../../common/decorators/current-user.decorator';
 import { UserEntity } from './entities/user.entity';
+
+class ChangePasswordDto {
+  @IsString()
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(8)
+  newPassword: string;
+}
 
 @ApiTags('auth')
 @Controller('auth')
@@ -69,6 +79,25 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refreshTokens(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshTokens(dto.refreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Change password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect' })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(
+      userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { message: 'Password changed successfully' };
   }
 
   @UseGuards(JwtAuthGuard)

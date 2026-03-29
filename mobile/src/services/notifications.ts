@@ -90,7 +90,7 @@ class NotificationService {
         });
 
         await Notifications.setNotificationChannelAsync('proximity', {
-          name: 'Proximity Alerts',
+          name: 'MYKO Alerts',
           importance: Notifications.AndroidImportance.DEFAULT,
           vibrationPattern: [0, 100],
           lightColor: '#00CEC9',

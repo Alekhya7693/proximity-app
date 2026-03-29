@@ -17,15 +17,15 @@ const TOTAL_STEPS = 6;
 const CURRENT_STEP = 6;
 
 const socialColors = {
-  background: '#0F0A1A',
-  surface: '#1A1128',
-  primary: '#8B5CF6',
-  secondary: '#EC4899',
+  background: '#0B2545',
+  surface: '#133E68',
+  primary: '#0EA5E9',
+  secondary: '#F97316',
   text: '#FFFFFF',
-  textSecondary: '#A78BFA',
+  textSecondary: '#38BDF8',
   textTertiary: '#6B7280',
-  border: '#2D2340',
-  borderLight: '#1F1730',
+  border: '#1B5B8A',
+  borderLight: '#0F3660',
   success: '#10B981',
 };
 
@@ -41,7 +41,7 @@ const AVATAR_OPTIONS: AvatarOption[] = [
     id: 'urban-fox',
     name: 'UrbanFox',
     emoji: '\u{1F98A}',
-    gradientColors: ['#8B5CF6', '#A855F7'],
+    gradientColors: ['#0EA5E9', '#06B6D4'],
   },
   {
     id: 'solar-nomad',
@@ -59,13 +59,13 @@ const AVATAR_OPTIONS: AvatarOption[] = [
     id: 'night-hawk',
     name: 'NightHawk',
     emoji: '\u{1F985}',
-    gradientColors: ['#6366F1', '#8B5CF6'],
+    gradientColors: ['#6366F1', '#0EA5E9'],
   },
   {
     id: 'cosmic-drifter',
     name: 'CosmicDrifter',
     emoji: '\u{1F319}',
-    gradientColors: ['#8B5CF6', '#EC4899'],
+    gradientColors: ['#0EA5E9', '#F97316'],
   },
   {
     id: 'ember-spark',
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   },
   avatarCardSelected: {
     borderColor: socialColors.primary,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    backgroundColor: 'rgba(14, 165, 233, 0.08)',
     shadowColor: socialColors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

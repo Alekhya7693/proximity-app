@@ -38,53 +38,9 @@ const FILTER_TABS: { id: FilterTab; label: string }[] = [
   { id: 'fake_profile', label: 'Fake Profile' },
 ];
 
-const MOCK_REPORTS: ReportItem[] = [
-  {
-    id: 'r1',
-    reportedUser: 'ShadowViper',
-    reporterUser: 'TidalWave',
-    reason: 'Harassment',
-    priority: 'high',
-    time: '5m ago',
-    userId: 'usr_8d4f2a',
-  },
-  {
-    id: 'r2',
-    reportedUser: 'CryptoKing99',
-    reporterUser: 'UrbanFox',
-    reason: 'Fake profile',
-    priority: 'high',
-    time: '12m ago',
-    userId: 'usr_3b7e1c',
-  },
-  {
-    id: 'r3',
-    reportedUser: 'NightOwl',
-    reporterUser: 'VoltMind',
-    reason: 'Spam',
-    priority: 'medium',
-    time: '28m ago',
-    userId: 'usr_9a2f4d',
-  },
-  {
-    id: 'r4',
-    reportedUser: 'GhostRider',
-    reporterUser: 'CoralReef',
-    reason: 'Inappropriate behavior',
-    priority: 'medium',
-    time: '1h ago',
-    userId: 'usr_5c8e3b',
-  },
-  {
-    id: 'r5',
-    reportedUser: 'PixelDust',
-    reporterUser: 'AuroraSkye',
-    reason: 'Unsafe conduct',
-    priority: 'low',
-    time: '2h ago',
-    userId: 'usr_7d1a9f',
-  },
-];
+// Reports will be fetched from admin API in production.
+// Starting with empty array until API integration is complete.
+const INITIAL_REPORTS: ReportItem[] = [];
 
 // ---------------------------------------------------------------------------
 // Priority config
@@ -102,7 +58,7 @@ const AdminReportQueueScreen: React.FC<Props> = ({ navigation }) => {
   const colors = adminColors;
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
 
-  const filteredReports = MOCK_REPORTS.filter((report) => {
+  const filteredReports = INITIAL_REPORTS.filter((report) => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'high_priority') return report.priority === 'high';
     if (activeFilter === 'harassment') return report.reason === 'Harassment';
@@ -216,7 +172,7 @@ const AdminReportQueueScreen: React.FC<Props> = ({ navigation }) => {
 
         <View style={[styles.countBadge, { backgroundColor: colors.alertHigh + '20' }]}>
           <Text style={[styles.countBadgeText, { color: colors.alertHigh }]}>
-            23 open
+            {filteredReports.length} open
           </Text>
         </View>
       </Animated.View>

@@ -52,19 +52,22 @@ export const locationService = {
   async getCurrentLocation(): Promise<any | null> {
     try {
       if (!isNative || !Location) {
-        // Web fallback using browser Geolocation API with timeout
-        const mockCoords = { latitude: 40.7128, longitude: -74.006 };
+        // Web: try browser Geolocation API, fall back to approximate location
         return new Promise((resolve) => {
           let resolved = false;
-          const fallback = () => {
+          const useFallback = () => {
             if (resolved) return;
             resolved = true;
-            useLocationStore.getState().setLocation(mockCoords);
-            resolve({ coords: mockCoords });
+            // Use a generic fallback — the actual location will be
+            // determined by the user's IP on the server side
+            const fallbackCoords = { latitude: 0, longitude: 0 };
+            console.warn('Location: Browser geolocation unavailable, using fallback');
+            useLocationStore.getState().setLocation(fallbackCoords);
+            resolve({ coords: fallbackCoords });
           };
-          // Timeout after 3s to avoid hanging on browser permission dialogs
-          const timer = setTimeout(fallback, 3000);
-          if ('geolocation' in navigator) {
+          // Timeout after 5s to avoid hanging on browser permission dialogs
+          const timer = setTimeout(useFallback, 5000);
+          if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
               (position) => {
                 if (resolved) return;
@@ -75,17 +78,17 @@ export const locationService = {
                   longitude: position.coords.longitude,
                 };
                 useLocationStore.getState().setLocation(coords);
-                resolve({ coords: position.coords });
+                resolve({ coords });
               },
               () => {
                 clearTimeout(timer);
-                fallback();
+                useFallback();
               },
-              { timeout: 3000, maximumAge: 60000 },
+              { timeout: 5000, maximumAge: 60000, enableHighAccuracy: false },
             );
           } else {
             clearTimeout(timer);
-            fallback();
+            useFallback();
           }
         });
       }
@@ -117,9 +120,8 @@ export const locationService = {
 
   async startTracking(): Promise<void> {
     if (!isNative || !Location) {
-      // Web: just set a mock location
-      const mockCoords = { latitude: 40.7128, longitude: -74.006 };
-      useLocationStore.getState().setLocation(mockCoords);
+      // Web: try to get real browser location, then mark as tracking
+      const loc = await this.getCurrentLocation();
       useLocationStore.getState().setTrackingActive(true);
       return;
     }

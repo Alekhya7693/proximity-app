@@ -42,5 +42,6 @@ coverage/
 *.mobileprovision
 *.orig.*
 
-# EAS
-eas.json
+# EAS credentials (eas.json itself should be committed)
+google-service-account.json
+credentials.json

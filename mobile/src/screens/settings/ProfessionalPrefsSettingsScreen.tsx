@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { enteringAnim } from '../../utils/animations';
 import { showAlert } from '../../utils/alert';
+import { authApi } from '../../api/auth';
 import type { RootStackScreenProps } from '../../navigation/types';
 
 type Props = RootStackScreenProps<'ProfessionalPrefsSettings'>;
@@ -47,9 +48,24 @@ const ProfessionalPrefsSettingsScreen: React.FC<Props> = ({ navigation }) => {
     );
   }, []);
 
-  const handleSave = () => {
-    showAlert('Preferences Saved', 'Your professional preferences have been updated.');
-    navigation.goBack();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await authApi.updatePreferences({
+        professionalIndustries: selectedIndustries,
+        professionalLookingFor: selectedLookingFor,
+        professionalCompanyStage: selectedStage,
+      });
+      showAlert('Preferences Saved', 'Your professional preferences have been updated.');
+      navigation.goBack();
+    } catch {
+      showAlert('Error', 'Failed to save preferences. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderChip = (

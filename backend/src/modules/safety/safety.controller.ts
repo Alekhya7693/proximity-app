@@ -14,7 +14,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { IsEnum, IsUUID, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsUUID, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { SafetyService, ReportReason } from './safety.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -35,6 +35,16 @@ class ReportUserDto {
 class BlockUserDto {
   @IsUUID()
   blockedUserId: string;
+}
+
+class SupportReportDto {
+  @IsString()
+  category: string;
+
+  @IsString()
+  @MinLength(10)
+  @MaxLength(2000)
+  description: string;
 }
 
 @ApiTags('safety')
@@ -95,5 +105,19 @@ export class SafetyController {
   @ApiResponse({ status: 200, description: 'Blocked users list' })
   async getBlockedUsers(@CurrentUser('id') userId: string) {
     return this.safetyService.getBlockedUsers(userId);
+  }
+
+  @Post('support')
+  @ApiOperation({ summary: 'Submit a support/bug report' })
+  @ApiResponse({ status: 201, description: 'Support report submitted' })
+  async submitSupportReport(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SupportReportDto,
+  ) {
+    return this.safetyService.submitSupportReport(
+      userId,
+      dto.category,
+      dto.description,
+    );
   }
 }

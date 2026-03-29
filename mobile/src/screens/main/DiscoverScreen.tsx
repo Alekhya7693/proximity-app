@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,86 +6,137 @@ import {
   TouchableOpacity,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
 import { useModeStore, AppMode } from '../../store/modeStore';
+import { useAuthStore } from '../../store/authStore';
+import { discoveryApi, DiscoveryProfile } from '../../api/discovery';
+import { locationService } from '../../services/location';
+import { locationApi } from '../../api/location';
 import ProfileCard from '../../components/ProfileCard';
 import type { MainTabScreenProps } from '../../navigation/types';
 
 type Props = MainTabScreenProps<'Discover'>;
 
-// ── Mock Data ────────────────────────────────────────────────────────────────
+// ── Adapter: map API profile to ProfileCard data ─────────────────────────────
 
-interface MockProfile {
-  id: string;
-  displayName: string;
-  age: number;
-  emoji: string;
-  distance: number;
-  compatibility: number;
-  tags: string[];
-  // Professional fields
-  role?: string;
-  company?: string;
+function toCardData(p: DiscoveryProfile) {
+  return {
+    id: p.id,
+    displayName: p.displayName,
+    age: p.age,
+    emoji: p.profilePhotos.length > 0 ? '' : defaultEmoji(p.displayName),
+    photo: p.profilePhotos[0],
+    distance: p.distance,
+    compatibility: p.compatibilityScore,
+    tags: p.interests.slice(0, 4),
+    role: p.profession,
+    company: p.company,
+  };
 }
 
-const SOCIAL_PROFILES: MockProfile[] = [
-  { id: '1', displayName: 'UrbanFox', age: 27, emoji: '\uD83E\uDD8A', distance: 80, compatibility: 94, tags: ['Coffee', 'Photography', 'Hiking', 'Live Music'] },
-  { id: '2', displayName: 'NeonDrift', age: 24, emoji: '\uD83C\uDF1F', distance: 120, compatibility: 87, tags: ['Art', 'Gaming', 'Anime', 'Cooking'] },
-  { id: '3', displayName: 'WildPetal', age: 29, emoji: '\uD83C\uDF3A', distance: 45, compatibility: 91, tags: ['Yoga', 'Reading', 'Travel', 'Wine'] },
-  { id: '7', displayName: 'LunarMist', age: 25, emoji: '\uD83C\uDF19', distance: 95, compatibility: 89, tags: ['Music', 'Dancing', 'Festivals', 'Vegan'] },
-  { id: '8', displayName: 'EmberSpark', age: 30, emoji: '\uD83D\uDD25', distance: 60, compatibility: 92, tags: ['Fitness', 'Outdoor', 'Dogs', 'Brunch'] },
-  { id: '9', displayName: 'TidalWave', age: 26, emoji: '\uD83C\uDF0A', distance: 110, compatibility: 85, tags: ['Surfing', 'Beach', 'Meditation', 'Travel'] },
-];
-
-const PROFESSIONAL_PROFILES: MockProfile[] = [
-  { id: '4', displayName: 'AlexChen', emoji: '\uD83D\uDCBC', age: 31, distance: 150, compatibility: 91, role: 'Product Manager', company: 'Stripe', tags: ['Fintech', 'Product Strategy', 'SaaS'] },
-  { id: '5', displayName: 'MayaPatel', emoji: '\uD83D\uDE80', age: 28, distance: 200, compatibility: 88, role: 'Senior Engineer', company: 'Vercel', tags: ['React', 'TypeScript', 'Open Source'] },
-  { id: '6', displayName: 'JordanLee', emoji: '\uD83C\uDFA8', age: 26, distance: 90, compatibility: 85, role: 'UX Designer', company: 'Figma', tags: ['Design Systems', 'Prototyping', 'User Research'] },
-  { id: '10', displayName: 'SamKim', emoji: '\uD83D\uDCCA', age: 33, distance: 170, compatibility: 90, role: 'Data Scientist', company: 'Databricks', tags: ['ML', 'Python', 'Analytics'] },
-  { id: '11', displayName: 'TaylorNg', emoji: '\uD83C\uDFAF', age: 29, distance: 80, compatibility: 86, role: 'Marketing Lead', company: 'Notion', tags: ['Growth', 'Content', 'Community'] },
-  { id: '12', displayName: 'RileyPark', emoji: '\u26A1', age: 27, distance: 130, compatibility: 83, role: 'Founding Engineer', company: 'Stealth', tags: ['Startup', 'Full Stack', 'AI'] },
-];
+function defaultEmoji(name: string): string {
+  const emojis = ['\uD83D\uDE04', '\uD83D\uDE0E', '\uD83E\uDD29', '\uD83E\uDD73', '\uD83E\uDD13', '\uD83E\uDD17', '\uD83E\uDDD1\u200D\uD83D\uDE80', '\uD83C\uDFA8'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return emojis[Math.abs(hash) % emojis.length];
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
   const { mode, setMode } = useModeStore();
+  const user = useAuthStore((s) => s.user);
   const isSocial = mode === 'social';
 
-  const profiles = useMemo(
-    () => (isSocial ? SOCIAL_PROFILES : PROFESSIONAL_PROFILES),
-    [isSocial],
-  );
+  // Data state
+  const [profiles, setProfiles] = useState<DiscoveryProfile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [seenAll, setSeenAll] = useState(false);
-  const currentProfile = seenAll ? null : profiles[currentIndex] || null;
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [nearbyCount, setNearbyCount] = useState<number | null>(null);
 
-  const handleSwipe = useCallback(
-    (direction: 'left' | 'right') => {
-      if (direction === 'right' && currentProfile) {
-        // 40% chance of match when swiping right
-        if (Math.random() < 0.4) {
-          (navigation as any).navigate('MatchPrompt', {
-            matchId: 'match-' + currentProfile.id,
-            userName: currentProfile.displayName,
-            userAvatar: currentProfile.emoji,
-            distance: currentProfile.distance,
-            compatibility: currentProfile.compatibility,
+  // ── Update location on mount, then fetch feed ───────────────────────────
+
+  const loadFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Update user location on the server before fetching feed
+      const loc = await locationService.getCurrentLocation();
+      if (loc?.coords) {
+        try {
+          await locationApi.updateLocation({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
           });
+        } catch {
+          // Non-critical — feed may still work from cached location
         }
       }
-      const nextIndex = currentIndex + 1;
-      if (nextIndex >= profiles.length) {
-        setSeenAll(true);
-      } else {
-        setCurrentIndex(nextIndex);
+
+      const result = await discoveryApi.getFeed(
+        {
+          mode,
+          maxDistance: 10000,
+          ageRange: { min: 18, max: 99 },
+          genderPreference: ['all'],
+        },
+        1,
+        20,
+      );
+      setProfiles(result.profiles);
+      setNearbyCount(result.profiles.length);
+      setCurrentIndex(0);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Unable to load profiles';
+      setError(msg);
+      setProfiles([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
+
+  // ── Swipe handler ─────────────────────────────────────────────────────────
+
+  const currentProfile = currentIndex < profiles.length ? profiles[currentIndex] : null;
+
+  const handleSwipe = useCallback(
+    async (direction: 'left' | 'right') => {
+      if (!currentProfile) return;
+
+      try {
+        const result = await discoveryApi.swipe({
+          targetUserId: currentProfile.id,
+          action: direction === 'right' ? 'like' : 'pass',
+          mode,
+        });
+
+        if (result.matched && result.matchId) {
+          (navigation as any).navigate('MatchPrompt', {
+            matchId: result.matchId,
+            userId: currentProfile.id,
+            userName: currentProfile.displayName,
+            userAvatar: currentProfile.profilePhotos[0] || defaultEmoji(currentProfile.displayName),
+            distance: currentProfile.distance,
+            compatibility: currentProfile.compatibilityScore,
+          });
+        }
+      } catch {
+        // Swipe failed silently — still advance the card
       }
+
+      setCurrentIndex((prev) => prev + 1);
     },
-    [currentProfile, currentIndex, profiles.length, navigation],
+    [currentProfile, mode, navigation],
   );
 
   const handleProfilePress = useCallback(() => {
@@ -100,13 +151,11 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const handleModeSwitch = useCallback(
     async (newMode: AppMode) => {
       await setMode(newMode);
-      setCurrentIndex(0);
-      setSeenAll(false);
     },
     [setMode],
   );
 
-  // Memoized gradient colors for the card
+  // Memoized gradient colors
   const cardGradientColors = useMemo<[string, string, string]>(
     () => [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end],
     [theme.colors.gradientCard.start, theme.colors.gradientCard.middle, theme.colors.gradientCard.end],
@@ -140,34 +189,34 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     () => navigation.navigate('Filters'),
     [navigation],
   );
-  const handleRefresh = useCallback(() => {
-    setCurrentIndex(0);
-    setSeenAll(false);
-  }, []);
+
+  // ── Card data adapter ─────────────────────────────────────────────────────
+
+  const cardData = currentProfile ? toCardData(currentProfile) : null;
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top']}
     >
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-            Proximity
+            MYKO
           </Text>
           <View
             style={[
               styles.modeBadge,
               {
-                backgroundColor: isSocial ? '#10B981' + '20' : '#3B82F6' + '20',
+                backgroundColor: isSocial ? '#0EA5E9' + '20' : '#D4A853' + '20',
               },
             ]}
           >
             <Text
               style={[
                 styles.modeBadgeText,
-                { color: isSocial ? '#10B981' : '#3B82F6' },
+                { color: isSocial ? '#0EA5E9' : '#D4A853' },
               ]}
             >
               {isSocial ? 'SOCIAL' : 'PRO'}
@@ -192,21 +241,19 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </View>
 
-      {/* ── Active Nearby Status ────────────────────────────────────────── */}
+      {/* Active Nearby Status */}
       <View style={styles.statusRow}>
         <View style={styles.statusDot} />
         <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
-          12 active nearby
-        </Text>
-        <Text style={[styles.statusSeparator, { color: theme.colors.textTertiary }]}>
-          {' \u00B7 '}
-        </Text>
-        <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
-          Downtown Core
+          {nearbyCount !== null
+            ? nearbyCount > 0
+              ? `${nearbyCount} ${nearbyCount === 1 ? 'person' : 'people'} found nearby`
+              : 'No one nearby right now'
+            : 'Scanning...'}
         </Text>
       </View>
 
-      {/* ── Mode Toggle ─────────────────────────────────────────────────── */}
+      {/* Mode Toggle */}
       <View
         style={[
           styles.modeToggleContainer,
@@ -220,7 +267,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         >
           {isSocial ? (
             <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
+              colors={['#0EA5E9', '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.modeTabGradient}
@@ -243,7 +290,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         >
           {!isSocial ? (
             <LinearGradient
-              colors={['#0F766E', '#0284C7']}
+              colors={['#1E3A5F', '#D4A853']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.modeTabGradient}
@@ -260,7 +307,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* ── Quick Action Pills ──────────────────────────────────────────── */}
+      {/* Quick Action Pills */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -281,9 +328,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.vibePillEmoji}>{'\u2615'}</Text>
           <Text style={[styles.vibePillText, { color: theme.colors.primary }]}>
             Coffee Chat
-          </Text>
-          <Text style={[styles.vibePillTimer, { color: theme.colors.textTertiary }]}>
-            28m
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -319,11 +363,34 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* ── Main Card Stack ─────────────────────────────────────────────── */}
+      {/* Main Card Stack */}
       <View style={styles.cardContainer}>
-        {currentProfile ? (
+        {isLoading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary, marginTop: 16 }]}>
+              Finding people nearby...
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateEmoji}>{'\u26A0\uFE0F'}</Text>
+            <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+              Something went wrong
+            </Text>
+            <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>
+              {error}
+            </Text>
+            <TouchableOpacity
+              style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
+              onPress={loadFeed}
+            >
+              <Text style={styles.emptyStateButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : cardData ? (
           <ProfileCard
-            profile={currentProfile}
+            profile={cardData}
             isSocial={isSocial}
             gradientColors={cardGradientColors}
             onPress={handleProfilePress}
@@ -331,11 +398,15 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>{'\u2728'}</Text>
-            <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>No more people nearby</Text>
-            <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>Check back later or expand your radius</Text>
+            <Text style={[styles.emptyStateTitle, { color: theme.colors.text }]}>
+              No more people nearby
+            </Text>
+            <Text style={[styles.emptyStateSubtitle, { color: theme.colors.textSecondary }]}>
+              Check back later or expand your radius
+            </Text>
             <TouchableOpacity
               style={[styles.emptyStateButton, { backgroundColor: theme.colors.primary }]}
-              onPress={handleRefresh}
+              onPress={loadFeed}
             >
               <Text style={styles.emptyStateButtonText}>Refresh</Text>
             </TouchableOpacity>
@@ -343,8 +414,8 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         )}
       </View>
 
-      {/* ── Swipe Action Buttons ────────────────────────────────────────── */}
-      {currentProfile && (
+      {/* Swipe Action Buttons */}
+      {cardData && (
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.passButton}
@@ -442,9 +513,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  statusSeparator: {
-    fontSize: 13,
-  },
 
   // Mode Toggle
   modeToggleContainer: {
@@ -505,10 +573,6 @@ const styles = StyleSheet.create({
   vibePillText: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  vibePillTimer: {
-    fontSize: 12,
-    fontWeight: '500',
   },
   actionPill: {
     flexDirection: 'row',
@@ -579,7 +643,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35,
         shadowRadius: 10,

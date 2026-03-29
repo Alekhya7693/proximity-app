@@ -34,7 +34,7 @@ export type MainTabParamList = {
 // -- Chat Stack (nested inside ChatList tab) --
 export type ChatStackParamList = {
   ChatListHome: undefined;
-  ChatDetail: { matchId: string; recipientName: string; recipientAvatar: string; isActive: boolean };
+  ChatDetail: { matchId: string; recipientId?: string; recipientName: string; recipientAvatar: string; isActive: boolean };
 };
 
 // -- Root Stack --
@@ -43,7 +43,7 @@ export type RootStackParamList = {
   Onboarding: NavigatorScreenParams<OnboardingStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
   ProfileDetail: { userId: string; mode: 'social' | 'professional' };
-  MatchPrompt: { matchId: string; userName: string; userAvatar: string; distance: number; compatibility: number };
+  MatchPrompt: { matchId: string; userId?: string; userName: string; userAvatar: string; distance: number; compatibility: number };
   Settings: undefined;
   Filters: undefined;
   ReportUser: { userId: string; userName: string; userAvatar: string };

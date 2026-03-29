@@ -8,6 +8,7 @@ import {
   OneToMany,
   OneToOne,
 } from 'typeorm';
+import { ProfileEntity } from '../../profile/entities/profile.entity';
 
 export enum UserStatus {
   ACTIVE = 'active',
@@ -59,30 +60,30 @@ export class UserEntity {
   @Column({ default: false })
   emailVerified: boolean;
 
-  @Column({ nullable: true, length: 6 })
+  @Column({ nullable: true, length: 6, select: false })
   verificationCode: string | null;
 
-  @Column({ nullable: true, type: 'timestamp' })
+  @Column({ nullable: true, type: 'timestamp', select: false })
   verificationCodeExpiresAt: Date | null;
 
   @Column({ nullable: true, type: 'varchar', length: 512 })
   fcmToken: string | null;
 
-  // PostGIS geography point for last known location
-  @Column({
-    type: 'geography',
-    spatialFeatureType: 'Point',
-    srid: 4326,
-    nullable: true,
-  })
-  @Index({ spatial: true })
-  lastLocation: string | null;
+  // Latitude/Longitude as simple floats (no PostGIS dependency)
+  @Column({ type: 'double precision', nullable: true })
+  lastLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  lastLongitude: number | null;
 
   @Column({ type: 'timestamp', nullable: true })
   lastLocationUpdatedAt: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
   lastActiveAt: Date | null;
+
+  @OneToOne(() => ProfileEntity, (profile) => profile.user, { eager: false })
+  profile: ProfileEntity;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,7 +1,7 @@
 import type { AdminUser, AuthResponse, LoginCredentials } from "@/types";
 
-const TOKEN_KEY = "proximity_admin_token";
-const USER_KEY = "proximity_admin_user";
+const TOKEN_KEY = "myko_admin_token";
+const USER_KEY = "myko_admin_user";
 
 /**
  * Store auth data after successful login

@@ -227,11 +227,11 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  // Floating orb data
+  // Floating orb data — cyan-blue and orange tones
   const orbs: FloatingOrbProps[] = [
     {
       size: 120,
-      color: 'rgba(139, 92, 246, 0.08)',
+      color: 'rgba(14, 165, 233, 0.08)',
       initialX: -30,
       initialY: 40,
       delay: 0,
@@ -239,7 +239,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 80,
-      color: 'rgba(236, 72, 153, 0.07)',
+      color: 'rgba(249, 115, 22, 0.07)',
       initialX: SCREEN_WIDTH - 60,
       initialY: 100,
       delay: 400,
@@ -247,7 +247,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 60,
-      color: 'rgba(139, 92, 246, 0.06)',
+      color: 'rgba(14, 165, 233, 0.06)',
       initialX: SCREEN_WIDTH * 0.3,
       initialY: SCREEN_HEIGHT * 0.15,
       delay: 800,
@@ -255,7 +255,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 100,
-      color: 'rgba(236, 72, 153, 0.06)',
+      color: 'rgba(249, 115, 22, 0.06)',
       initialX: SCREEN_WIDTH * 0.6,
       initialY: SCREEN_HEIGHT * 0.55,
       delay: 200,
@@ -263,7 +263,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 50,
-      color: 'rgba(139, 92, 246, 0.05)',
+      color: 'rgba(6, 182, 212, 0.05)',
       initialX: 20,
       initialY: SCREEN_HEIGHT * 0.65,
       delay: 600,
@@ -295,25 +295,25 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             entering={enteringAnim(FadeInUp.duration(800).delay(100))}
             style={styles.header}
           >
-            {/* Small Proximity Logo (gradient icon) */}
+            {/* Small MYKO Logo (gradient icon) */}
             <Animated.View
               style={[
                 styles.logoWrapper,
                 iconGlowStyle,
                 Platform.select({
                   ios: {
-                    shadowColor: '#8B5CF6',
+                    shadowColor: '#0EA5E9',
                     shadowOffset: { width: 0, height: 0 },
                   },
                   android: { elevation: 8 },
                   web: {
-                    boxShadow: '0 0 16px rgba(139, 92, 246, 0.4)',
+                    boxShadow: '0 0 16px rgba(14, 165, 233, 0.4)',
                   } as any,
                 }),
               ]}
             >
               <LinearGradient
-                colors={['#8B5CF6', '#EC4899']}
+                colors={['#0EA5E9', '#06B6D4']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.logoBorder}
@@ -349,7 +349,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your email"
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#64748B"
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -387,7 +387,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 <TextInput
                   style={[styles.input, styles.passwordField]}
                   placeholder="Enter your password"
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#64748B"
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -443,7 +443,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 ]}
               >
                 <LinearGradient
-                  colors={['#8B5CF6', '#EC4899']}
+                  colors={['#0EA5E9', '#F97316']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.gradientButton}
@@ -514,7 +514,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0A1A',
+    backgroundColor: '#0B2545',
   },
   flex: {
     flex: 1,
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   logoInner: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#0F0A1A',
+    backgroundColor: '#0B2545',
     borderRadius: 15.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 2,
-    borderColor: '#8B5CF6',
+    borderColor: '#0EA5E9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#C084FC',
+    borderColor: '#38BDF8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EC4899',
+    backgroundColor: '#F97316',
   },
   headerTitle: {
     fontSize: 32,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#64748B',
     lineHeight: 24,
   },
 
@@ -600,32 +600,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.5,
-    color: '#6B7280',
+    color: '#64748B',
     marginBottom: 8,
     textTransform: 'uppercase',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1128',
+    backgroundColor: '#133E68',
     borderWidth: 1.5,
-    borderColor: '#2D2340',
+    borderColor: '#1B5B8A',
     borderRadius: 14,
     paddingHorizontal: 16,
     minHeight: 54,
   },
   inputWrapperFocused: {
-    borderColor: '#8B5CF6',
+    borderColor: '#0EA5E9',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
       },
       android: { elevation: 2 },
       web: {
-        boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.1)',
+        boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
       } as any,
     }),
   },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   showPasswordText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8B5CF6',
+    color: '#0EA5E9',
   },
   errorText: {
     fontSize: 12,
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#EC4899',
+    color: '#F97316',
   },
 
   // ── Gradient Button ─────────────────────────────────────────────
@@ -677,14 +677,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
       },
       android: { elevation: 6 },
       web: {
-        boxShadow: '0 6px 24px rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 6px 24px rgba(14, 165, 233, 0.4)',
       } as any,
     }),
   },
@@ -714,14 +714,14 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2D2340',
+    backgroundColor: '#1B5B8A',
   },
   dividerText: {
     marginHorizontal: 16,
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontSize: 11,
-    color: '#6B7280',
+    color: '#64748B',
     fontWeight: '500',
   },
 
@@ -737,9 +737,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1128',
+    backgroundColor: '#133E68',
     borderWidth: 1.5,
-    borderColor: '#2D2340',
+    borderColor: '#1B5B8A',
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -771,12 +771,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
   },
   footerLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#0EA5E9',
   },
 });
 

@@ -1,65 +1,85 @@
 {
   "expo": {
-    "name": "Proximity",
-    "slug": "proximity",
+    "name": "MYKO",
+    "slug": "myko",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "scheme": "myko",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6C5CE7"
+      "backgroundColor": "#0B2545"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.proximity.app",
+      "bundleIdentifier": "com.myko.app",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Proximity needs your location to discover people nearby.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Proximity uses your location in the background to notify you when compatible people are nearby.",
-        "NSCameraUsageDescription": "Proximity needs camera access so you can take profile photos.",
-        "NSPhotoLibraryUsageDescription": "Proximity needs photo library access so you can choose profile photos."
+        "NSLocationWhenInUseUsageDescription": "MYKO needs your location to discover people nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "MYKO uses your location in the background to notify you when compatible people are nearby.",
+        "NSCameraUsageDescription": "MYKO needs camera access so you can take profile photos.",
+        "NSPhotoLibraryUsageDescription": "MYKO needs photo library access so you can choose profile photos.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6C5CE7"
+        "backgroundColor": "#0B2545"
       },
-      "package": "com.proximity.app",
+      "package": "com.myko.app",
+      "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
       ]
     },
     "plugins": [
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Proximity uses your location to discover people nearby and send proximity alerts."
+          "locationAlwaysAndWhenInUsePermission": "MYKO uses your location to discover people nearby and send proximity alerts.",
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#6C5CE7"
+          "color": "#0EA5E9",
+          "sounds": []
         }
       ],
       "expo-secure-store",
       "expo-asset",
       "expo-font"
     ],
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 30000,
+      "url": "https://u.expo.dev/YOUR_EAS_PROJECT_ID"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "YOUR_EAS_PROJECT_ID"
       }
-    }
+    },
+    "owner": "myko"
   }
 }

@@ -28,53 +28,8 @@ interface NotificationItem {
   unread: boolean;
 }
 
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: '1',
-    icon: '\u2764\uFE0F',
-    iconColor: '#8B5CF6',
-    title: 'New Match!',
-    body: 'You matched with TidalWave',
-    time: '2m ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    icon: '\uD83D\uDCAC',
-    iconColor: '#3B82F6',
-    title: 'New message from UrbanFox',
-    body: 'Are you still at the cafe?',
-    time: '5m ago',
-    unread: true,
-  },
-  {
-    id: '3',
-    icon: '\uD83C\uDFAF',
-    iconColor: '#10B981',
-    title: '94% match nearby',
-    body: 'Someone compatible just entered your zone',
-    time: '12m ago',
-    unread: false,
-  },
-  {
-    id: '4',
-    icon: '\u23F0',
-    iconColor: '#F59E0B',
-    title: 'Chat expiring soon',
-    body: 'VoltMind chat expires in 2 hours',
-    time: '1h ago',
-    unread: false,
-  },
-  {
-    id: '5',
-    icon: '\u2728',
-    iconColor: '#EC4899',
-    title: 'Vibe Check reminder',
-    body: 'Update your vibe to attract better matches',
-    time: '3h ago',
-    unread: false,
-  },
-];
+// Notifications will be fetched from the backend API in production.
+// Starting with an empty array to avoid showing placeholder data.
 
 // ---------------------------------------------------------------------------
 // Notification Row
@@ -157,7 +112,7 @@ const NotificationRow: React.FC<NotificationRowProps> = ({
 // ===========================================================================
 const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
-  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const hasUnread = notifications.some((n) => n.unread);
 
@@ -229,9 +184,20 @@ const NotificationsScreen: React.FC<Props> = ({ navigation }) => {
         data={notifications}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, notifications.length === 0 && styles.emptyListContent]}
         showsVerticalScrollIndicator={false}
         extraData={notifications}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>{'\uD83D\uDD14'}</Text>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+              No notifications yet
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.textTertiary }]}>
+              When you get matches, messages, or alerts they will appear here.
+            </Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );
@@ -279,6 +245,32 @@ const styles = StyleSheet.create({
   // ---- List ----
   listContent: {
     paddingBottom: 32,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+  },
+
+  // ---- Empty State ----
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyEmoji: {
+    fontSize: 56,
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 
   // ---- Notification Row ----

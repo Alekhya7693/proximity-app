@@ -35,11 +35,12 @@ interface BarData {
 // ---------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------
+// Stats will be fetched from admin API in production.
 const STATS: StatCard[] = [
-  { id: 'active', title: 'Active Users (24h)', value: '8,421', trend: '+12%', trendUp: true },
-  { id: 'matches', title: 'New Matches Today', value: '1,204', trend: '+8%', trendUp: true },
-  { id: 'reports', title: 'Open Reports', value: '23', trend: '-15%', trendUp: false },
-  { id: 'chats', title: 'Active Chats', value: '3,891', trend: '+5%', trendUp: true },
+  { id: 'active', title: 'Active Users (24h)', value: '--', trend: '--', trendUp: true },
+  { id: 'matches', title: 'New Matches Today', value: '--', trend: '--', trendUp: true },
+  { id: 'reports', title: 'Open Reports', value: '0', trend: '--', trendUp: false },
+  { id: 'chats', title: 'Active Chats', value: '--', trend: '--', trendUp: true },
 ];
 
 const ACTIVITY_DATA: BarData[] = [
@@ -68,17 +69,17 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
             <LinearGradient
-              colors={[colors.primary, '#EC4899']}
+              colors={[colors.primary, '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.logoBg}
             >
-              <Text style={styles.logoText}>P</Text>
+              <Text style={styles.logoText}>M</Text>
             </LinearGradient>
           </View>
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
-              Proximity Admin
+              MYKO Admin
             </Text>
             <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               Super Admin {'\u00B7'} Live
@@ -93,7 +94,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
             style={[styles.alertBadge, { backgroundColor: colors.alertHigh + '20' }]}
           >
             <Text style={[styles.alertBadgeText, { color: colors.alertHigh }]}>
-              {'\u26A0'} 23 Reports
+              {'\u26A0'} Reports
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -178,7 +179,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
               <View key={`bar-${index}`} style={styles.barColumn}>
                 <View style={styles.barTrack}>
                   <LinearGradient
-                    colors={[colors.primary, '#EC4899']}
+                    colors={[colors.primary, '#F97316']}
                     start={{ x: 0, y: 1 }}
                     end={{ x: 0, y: 0 }}
                     style={[
@@ -209,7 +210,7 @@ const AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => navigation.navigate('AdminReportQueue')}
           >
             <LinearGradient
-              colors={[colors.primary, '#EC4899']}
+              colors={[colors.primary, '#F97316']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.primaryAction}
@@ -379,7 +380,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
     justifyContent: 'flex-end',
-    backgroundColor: '#2D234020',
+    backgroundColor: '#1B5B8A20',
   },
   barFill: {
     width: '100%',

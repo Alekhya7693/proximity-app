@@ -38,6 +38,16 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface SupportReportRequest {
+  category: string;
+  description: string;
+}
+
 export const authApi = {
   async login(data: LoginRequest): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/login', data);
@@ -45,48 +55,27 @@ export const authApi = {
   },
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
-      '/auth/register',
-      data,
-    );
+    const response = await apiClient.post<AuthResponse>('/auth/register', data);
     return response.data;
   },
 
   async verifyEmail(data: VerifyEmailRequest): Promise<{ message: string }> {
-    const response = await apiClient.post<{ message: string }>(
-      '/auth/verify-email',
-      data,
-    );
+    const response = await apiClient.post<{ message: string }>('/auth/verify-email', data);
     return response.data;
   },
 
-  async resendVerification(
-    email: string,
-  ): Promise<{ message: string }> {
-    const response = await apiClient.post<{ message: string }>(
-      '/auth/resend-verification',
-      { email },
-    );
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/resend-verification', { email });
     return response.data;
   },
 
-  async forgotPassword(
-    data: ForgotPasswordRequest,
-  ): Promise<{ message: string }> {
-    const response = await apiClient.post<{ message: string }>(
-      '/auth/forgot-password',
-      data,
-    );
+  async forgotPassword(data: ForgotPasswordRequest): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/forgot-password', data);
     return response.data;
   },
 
-  async resetPassword(
-    data: ResetPasswordRequest,
-  ): Promise<{ message: string }> {
-    const response = await apiClient.post<{ message: string }>(
-      '/auth/reset-password',
-      data,
-    );
+  async resetPassword(data: ResetPasswordRequest): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/reset-password', data);
     return response.data;
   },
 
@@ -100,23 +89,30 @@ export const authApi = {
     return response.data;
   },
 
-  async uploadProfilePhoto(
-    formData: FormData,
-  ): Promise<{ url: string }> {
-    const response = await apiClient.post<{ url: string }>(
-      '/profile/photo',
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      },
-    );
+  async uploadProfilePhoto(formData: FormData): Promise<{ url: string }> {
+    const response = await apiClient.post<{ url: string }>('/profile/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  async changePassword(data: ChangePasswordRequest): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/auth/change-password', data);
+    return response.data;
+  },
+
+  async updatePreferences(preferences: Record<string, unknown>): Promise<unknown> {
+    const response = await apiClient.put('/profile', { preferences });
+    return response.data;
+  },
+
+  async submitSupportReport(data: SupportReportRequest): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/safety/support', data);
     return response.data;
   },
 
   async deleteAccount(): Promise<{ message: string }> {
-    const response = await apiClient.delete<{ message: string }>(
-      '/auth/account',
-    );
+    const response = await apiClient.delete<{ message: string }>('/auth/account');
     return response.data;
   },
 

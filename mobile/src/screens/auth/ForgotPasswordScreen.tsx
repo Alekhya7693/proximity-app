@@ -178,7 +178,7 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
   const orbs: FloatingOrbProps[] = [
     {
       size: 100,
-      color: 'rgba(139, 92, 246, 0.07)',
+      color: 'rgba(14, 165, 233, 0.07)',
       initialX: -20,
       initialY: 80,
       delay: 0,
@@ -186,7 +186,7 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 70,
-      color: 'rgba(236, 72, 153, 0.06)',
+      color: 'rgba(249, 115, 22, 0.06)',
       initialX: SCREEN_WIDTH - 50,
       initialY: 140,
       delay: 400,
@@ -194,7 +194,7 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       size: 50,
-      color: 'rgba(139, 92, 246, 0.05)',
+      color: 'rgba(14, 165, 233, 0.05)',
       initialX: SCREEN_WIDTH * 0.4,
       initialY: SCREEN_HEIGHT * 0.6,
       delay: 800,
@@ -244,7 +244,7 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
               style={styles.successButtonTouchable}
             >
               <LinearGradient
-                colors={['#8B5CF6', '#EC4899']}
+                colors={['#0EA5E9', '#F97316']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.successButton}
@@ -350,7 +350,7 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
                 ]}
               >
                 <LinearGradient
-                  colors={['#8B5CF6', '#EC4899']}
+                  colors={['#0EA5E9', '#F97316']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.gradientButton}
@@ -376,7 +376,7 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0A1A',
+    backgroundColor: '#0B2545',
   },
   flex: {
     flex: 1,
@@ -391,9 +391,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#1A1128',
+    backgroundColor: '#133E68',
     borderWidth: 1.5,
-    borderColor: '#2D2340',
+    borderColor: '#1B5B8A',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 24,
@@ -451,25 +451,25 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1128',
+    backgroundColor: '#133E68',
     borderWidth: 1.5,
-    borderColor: '#2D2340',
+    borderColor: '#1B5B8A',
     borderRadius: 14,
     paddingHorizontal: 16,
     minHeight: 54,
   },
   inputWrapperFocused: {
-    borderColor: '#8B5CF6',
+    borderColor: '#0EA5E9',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
       },
       android: { elevation: 2 },
       web: {
-        boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.1)',
+        boxShadow: '0 0 0 3px rgba(14, 165, 233, 0.1)',
       } as any,
     }),
   },
@@ -496,14 +496,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
       },
       android: { elevation: 6 },
       web: {
-        boxShadow: '0 6px 24px rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 6px 24px rgba(14, 165, 233, 0.4)',
       } as any,
     }),
   },
@@ -566,14 +566,14 @@ const styles = StyleSheet.create({
     width: '100%',
     ...Platform.select({
       ios: {
-        shadowColor: '#8B5CF6',
+        shadowColor: '#0EA5E9',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 12,
       },
       android: { elevation: 6 },
       web: {
-        boxShadow: '0 6px 24px rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 6px 24px rgba(14, 165, 233, 0.4)',
       } as any,
     }),
   },
