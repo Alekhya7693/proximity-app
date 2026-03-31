@@ -65,6 +65,10 @@ export class ProfileService {
     });
 
     const saved = await this.profileRepository.save(profile);
+
+    // Mark onboarding complete when profile is created
+    await this.userRepository.update(userId, { isOnboardingComplete: true });
+
     this.logger.log(`Profile created for user: ${userId}`);
     return saved;
   }

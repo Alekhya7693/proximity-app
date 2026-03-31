@@ -13,6 +13,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { UserEntity, UserStatus } from './entities/user.entity';
 import { SessionEntity } from './entities/session.entity';
+import { ProfileEntity, Gender, IntentionType } from '../profile/entities/profile.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
@@ -38,9 +39,18 @@ export class AuthService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(SessionEntity)
     private readonly sessionRepository: Repository<SessionEntity>,
+    @InjectRepository(ProfileEntity)
+    private readonly profileRepository: Repository<ProfileEntity>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    // Seed demo user on startup (after DB sync completes)
+    setTimeout(() => {
+      this.seedDemoUser().catch((err) => {
+        this.logger.error(`Demo seed failed: ${err.message}`);
+      });
+    }, 3000);
+  }
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
     // Check for existing email
@@ -119,6 +129,15 @@ export class AuthService {
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Auto-detect onboarding status from profile
+    if (!user.isOnboardingComplete) {
+      const profile = await this.profileRepository.findOne({ where: { userId: user.id } });
+      if (profile && profile.profileCompleteness > 0) {
+        await this.userRepository.update(user.id, { isOnboardingComplete: true });
+        user.isOnboardingComplete = true;
+      }
     }
 
     // Update last active
@@ -359,6 +378,55 @@ export class AuthService {
       default:
         return 900;
     }
+  }
+
+  private async seedDemoUser(): Promise<void> {
+    const email = 'demo@myko.app';
+    const existing = await this.userRepository.findOne({ where: { email } });
+    if (existing) {
+      // Ensure onboarding is marked complete for demo user
+      if (!existing.isOnboardingComplete) {
+        await this.userRepository.update(existing.id, { isOnboardingComplete: true });
+      }
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash('Demo1234!', this.SALT_ROUNDS);
+    const user = this.userRepository.create({
+      email,
+      passwordHash,
+      username: 'demo_user',
+      firstName: 'Demo',
+      lastName: 'User',
+      dateOfBirth: new Date('1995-06-15'),
+      emailVerified: true,
+      isOnboardingComplete: true,
+      lastLatitude: 40.7128,
+      lastLongitude: -74.006,
+      lastActiveAt: new Date(),
+    });
+
+    const saved = await this.userRepository.save(user);
+
+    // Create demo profile
+    const profile = this.profileRepository.create({
+      userId: saved.id,
+      displayName: 'CosmicDrifter',
+      avatar: 'cosmic-drifter',
+      bio: 'Exploring the city one coffee at a time. Love tech, art, and spontaneous conversations.',
+      gender: Gender.OTHER,
+      intention: IntentionType.ALL,
+      interests: ['technology', 'coffee', 'art', 'music', 'travel'],
+      occupation: 'Software Engineer',
+      company: 'Startup Co',
+      city: 'New York',
+      photos: [],
+      isVisible: true,
+      profileCompleteness: 60,
+    });
+    await this.profileRepository.save(profile);
+
+    this.logger.log('Demo user seeded: demo@myko.app / Demo1234!');
   }
 
   private sanitizeUser(user: UserEntity): Partial<UserEntity> {

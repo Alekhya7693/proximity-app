@@ -4,6 +4,7 @@ import { Repository, Not, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { UserEntity, UserStatus } from '../auth/entities/user.entity';
 import { ProfileEntity, IntentionType } from '../profile/entities/profile.entity';
+import { SwipeEntity } from '../match/entities/swipe.entity';
 import { LocationService } from '../location/location.service';
 import { RedisGeoService, GeoMember } from '../location/redis-geo.service';
 
@@ -39,6 +40,8 @@ export class DiscoveryService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(ProfileEntity)
     private readonly profileRepository: Repository<ProfileEntity>,
+    @InjectRepository(SwipeEntity)
+    private readonly swipeRepository: Repository<SwipeEntity>,
     private readonly locationService: LocationService,
     private readonly redisGeoService: RedisGeoService,
     private readonly configService: ConfigService,
@@ -284,10 +287,12 @@ export class DiscoveryService {
   }
 
   private async getExcludedUserIds(userId: string): Promise<string[]> {
-    // This will be expanded when swipe/block entities are integrated.
-    // For now, query any blocked users or already-swiped users.
-    // Placeholder: return empty array until match/safety modules are wired.
-    return [];
+    // Get users already swiped by this user
+    const swipes = await this.swipeRepository.find({
+      where: { swiperId: userId },
+      select: ['swipedId'],
+    });
+    return swipes.map((s) => s.swipedId);
   }
 
   private sanitizeProfile(profile: ProfileEntity): Record<string, any> {

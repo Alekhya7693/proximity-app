@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../store/authStore';
+import { authApi } from '../../api/auth';
 import type { OnboardingScreenProps } from '../../navigation/types';
 
 type Props = OnboardingScreenProps<'AvatarSetup'>;
@@ -104,10 +105,22 @@ const AvatarSetupScreen: React.FC<Props> = ({ navigation }) => {
 
   const currentAvatar = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)!;
 
+  const [saving, setSaving] = useState(false);
+
   const handleStartExploring = async () => {
-    // Mark onboarding as complete in auth store
+    setSaving(true);
+    try {
+      // Save profile to backend — this also marks onboarding complete server-side
+      await authApi.updateProfile({
+        displayName: currentAvatar.name,
+        avatar: selectedAvatar,
+      });
+    } catch {
+      // Non-critical: profile can be updated later
+    }
+    // Mark onboarding as complete in auth store (navigates to main app)
     updateUser({ isOnboardingComplete: true, displayName: currentAvatar.name });
-    // The RootNavigator will auto-switch to Main since isOnboardingComplete is now true
+    setSaving(false);
   };
 
   return (

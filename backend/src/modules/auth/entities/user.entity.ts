@@ -60,6 +60,9 @@ export class UserEntity {
   @Column({ default: false })
   emailVerified: boolean;
 
+  @Column({ default: false })
+  isOnboardingComplete: boolean;
+
   @Column({ nullable: true, length: 6, select: false })
   verificationCode: string | null;
 
