@@ -43,6 +43,15 @@ type ReadReceiptHandler = (data: {
   readAt: string;
 }) => void;
 
+type NearbyCountHandler = (data: { count: number }) => void;
+
+type NearbyUsersHandler = (data: {
+  candidates: any[];
+  total: number;
+}) => void;
+
+type FeedChangedHandler = (data: { reason: string }) => void;
+
 interface SocketEventHandlers {
   onNewMessage?: MessageHandler;
   onTyping?: TypingHandler;
@@ -54,9 +63,20 @@ interface SocketEventHandlers {
   onDisconnect?: (reason: string) => void;
 }
 
+interface DiscoveryEventHandlers {
+  onNearbyCount?: NearbyCountHandler;
+  onNearbyUsersUpdated?: NearbyUsersHandler;
+  onFeedChanged?: FeedChangedHandler;
+  onUserOnlineStatus?: OnlineStatusHandler;
+  onConnect?: () => void;
+  onDisconnect?: (reason: string) => void;
+}
+
 class SocketService {
   private socket: Socket | null = null;
+  private discoverySocket: Socket | null = null;
   private handlers: SocketEventHandlers = {};
+  private discoveryHandlers: DiscoveryEventHandlers = {};
 
   async connect(): Promise<void> {
     const token = await storage.getAccessToken();
@@ -80,6 +100,95 @@ class SocketService {
 
     this.setupListeners();
   }
+
+  // ─── Discovery Socket (separate namespace) ─────────────────
+
+  async connectDiscovery(): Promise<void> {
+    const token = await storage.getAccessToken();
+    if (!token) return;
+
+    if (this.discoverySocket?.connected) return;
+
+    this.discoverySocket = io(`${SOCKET_URL}/discovery`, {
+      auth: { token },
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+    });
+
+    this.setupDiscoveryListeners();
+  }
+
+  private setupDiscoveryListeners(): void {
+    if (!this.discoverySocket) return;
+
+    this.discoverySocket.on('connect', () => {
+      console.log('Discovery socket connected:', this.discoverySocket?.id);
+      this.discoveryHandlers.onConnect?.();
+    });
+
+    this.discoverySocket.on('disconnect', (reason: string) => {
+      console.log('Discovery socket disconnected:', reason);
+      this.discoveryHandlers.onDisconnect?.(reason);
+    });
+
+    this.discoverySocket.on('connect_error', (error: Error) => {
+      console.warn('Discovery socket error:', error.message);
+    });
+
+    this.discoverySocket.on('nearby_count', (data) => {
+      this.discoveryHandlers.onNearbyCount?.(data);
+    });
+
+    this.discoverySocket.on('nearby_users_updated', (data) => {
+      this.discoveryHandlers.onNearbyUsersUpdated?.(data);
+    });
+
+    this.discoverySocket.on('feed_changed', (data) => {
+      this.discoveryHandlers.onFeedChanged?.(data);
+    });
+
+    this.discoverySocket.on('user_online_status', (data) => {
+      this.discoveryHandlers.onUserOnlineStatus?.(data);
+    });
+  }
+
+  setDiscoveryHandlers(handlers: DiscoveryEventHandlers): void {
+    this.discoveryHandlers = { ...this.discoveryHandlers, ...handlers };
+  }
+
+  subscribeFeed(mode: 'social' | 'professional'): void {
+    this.discoverySocket?.emit('subscribe_feed', { mode });
+  }
+
+  unsubscribeFeed(): void {
+    this.discoverySocket?.emit('unsubscribe_feed');
+  }
+
+  refreshFeed(): void {
+    this.discoverySocket?.emit('refresh_feed');
+  }
+
+  updateLocationViaDiscovery(latitude: number, longitude: number): void {
+    this.discoverySocket?.emit('location_update', { latitude, longitude });
+  }
+
+  disconnectDiscovery(): void {
+    if (this.discoverySocket) {
+      this.discoverySocket.removeAllListeners();
+      this.discoverySocket.disconnect();
+      this.discoverySocket = null;
+    }
+    this.discoveryHandlers = {};
+  }
+
+  get isDiscoveryConnected(): boolean {
+    return this.discoverySocket?.connected ?? false;
+  }
+
+  // ─── Chat Socket (existing) ────────────────────────────────
 
   private setupListeners(): void {
     if (!this.socket) return;
@@ -144,6 +253,8 @@ class SocketService {
   }
 
   updateLocation(latitude: number, longitude: number): void {
+    // Send to both sockets — discovery handles it server-side
+    this.discoverySocket?.emit('location_update', { latitude, longitude });
     this.socket?.emit('location_update', { latitude, longitude });
   }
 
@@ -154,6 +265,7 @@ class SocketService {
       this.socket = null;
     }
     this.handlers = {};
+    this.disconnectDiscovery();
   }
 
   get isConnected(): boolean {

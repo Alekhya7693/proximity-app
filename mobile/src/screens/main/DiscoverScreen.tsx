@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useAuthStore } from '../../store/authStore';
 import { discoveryApi, DiscoveryProfile } from '../../api/discovery';
 import { locationService } from '../../services/location';
 import { locationApi } from '../../api/location';
+import { socketService } from '../../services/socket';
 import ProfileCard from '../../components/ProfileCard';
 import type { MainTabScreenProps } from '../../navigation/types';
 
@@ -60,6 +61,9 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const [error, setError] = useState<string | null>(null);
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
 
+  // Track whether we're subscribed to real-time feed
+  const wsConnected = useRef(false);
+
   // ── Update location on mount, then fetch feed ───────────────────────────
 
   const loadFeed = useCallback(async () => {
@@ -74,6 +78,11 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
           });
+          // Also push location via WebSocket for real-time discovery
+          socketService.updateLocationViaDiscovery(
+            loc.coords.latitude,
+            loc.coords.longitude,
+          );
         } catch {
           // Non-critical — feed may still work from cached location
         }
@@ -100,6 +109,75 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
       setIsLoading(false);
     }
   }, [mode]);
+
+  // ── WebSocket real-time discovery ──────────────────────────────────────
+
+  useEffect(() => {
+    let mounted = true;
+
+    const setupDiscoverySocket = async () => {
+      try {
+        await socketService.connectDiscovery();
+
+        socketService.setDiscoveryHandlers({
+          onConnect: () => {
+            if (!mounted) return;
+            wsConnected.current = true;
+            // Subscribe to feed for the current mode
+            socketService.subscribeFeed(isSocial ? 'social' : 'professional');
+          },
+          onNearbyCount: (data) => {
+            if (!mounted) return;
+            setNearbyCount(data.count);
+          },
+          onNearbyUsersUpdated: (data) => {
+            if (!mounted) return;
+            // Map candidates to DiscoveryProfile shape
+            if (data.candidates && data.candidates.length > 0) {
+              const mapped: DiscoveryProfile[] = data.candidates.map((c: any) => ({
+                id: c.profile?.userId || c.userId,
+                displayName: c.profile?.displayName || 'Nearby',
+                age: c.profile?.age,
+                bio: c.profile?.bio || '',
+                profilePhotos: c.profile?.photos || [],
+                interests: c.profile?.interests || [],
+                distance: c.distance,
+                compatibilityScore: c.score,
+                isOnline: c.isOnline,
+                profession: c.profile?.occupation,
+                company: '',
+              }));
+              setProfiles(mapped);
+              setNearbyCount(data.total);
+              setCurrentIndex(0);
+              setIsLoading(false);
+            }
+          },
+          onFeedChanged: () => {
+            if (!mounted) return;
+            // Feed changed — request a refresh via socket
+            socketService.refreshFeed();
+          },
+          onDisconnect: () => {
+            wsConnected.current = false;
+          },
+        });
+      } catch (err) {
+        console.warn('Discovery socket setup failed:', err);
+      }
+    };
+
+    setupDiscoverySocket();
+
+    return () => {
+      mounted = false;
+      socketService.unsubscribeFeed();
+      socketService.disconnectDiscovery();
+      wsConnected.current = false;
+    };
+  }, [isSocial]);
+
+  // ── Initial REST load as fallback ──────────────────────────────────────
 
   useEffect(() => {
     loadFeed();
@@ -247,7 +325,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
           {nearbyCount !== null
             ? nearbyCount > 0
-              ? `${nearbyCount} ${nearbyCount === 1 ? 'person' : 'people'} found nearby`
+              ? `${nearbyCount} ${nearbyCount === 1 ? 'person' : 'people'} nearby${wsConnected.current ? ' \u2022 Live' : ''}`
               : 'No one nearby right now'
             : 'Scanning...'}
         </Text>
