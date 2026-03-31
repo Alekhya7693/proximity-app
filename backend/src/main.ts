@@ -20,20 +20,19 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix(apiPrefix);
 
-  // Security headers
-  app.use(helmet());
+  // Security headers (relaxed for cross-origin API access)
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: false,
+  }));
 
-  // CORS
-  const corsOrigins = configService.get<string>('CORS_ORIGINS', 'http://localhost:3000');
-  const corsOriginConfig =
-    corsOrigins.trim() === '*'
-      ? true // Allow all origins
-      : corsOrigins.split(',').map((o) => o.trim());
+  // CORS — allow all origins for simplicity (auth is token-based, not cookie-based)
   app.enableCors({
-    origin: corsOriginConfig,
-    credentials: configService.get<boolean>('CORS_CREDENTIALS', true),
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
   });
 
   // Global validation pipe
