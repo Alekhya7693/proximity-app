@@ -99,9 +99,19 @@ export const discoveryApi = {
     }
   },
 
-  async setActiveVibes(vibes: string[], mode: AppMode): Promise<{ message: string }> {
+  async setActiveVibes(
+    vibes: string[],
+    mode: AppMode,
+    durationMinutes?: number,
+    customText?: string,
+  ): Promise<{ message: string }> {
     try {
-      const response = await apiClient.post<{ message: string }>('/discovery/vibes', { vibes, mode });
+      const response = await apiClient.post<{ message: string }>('/discovery/vibes', {
+        vibes,
+        mode,
+        durationMinutes: durationMinutes || 60,
+        customText,
+      });
       return response.data;
     } catch {
       return { message: 'Vibes updated' };

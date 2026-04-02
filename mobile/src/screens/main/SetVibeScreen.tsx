@@ -80,7 +80,12 @@ const SetVibeScreen: React.FC<Props> = ({ navigation, route }) => {
     const mode = useModeStore.getState().mode;
 
     try {
-      await discoveryApi.setActiveVibes([selectedVibe], mode);
+      await discoveryApi.setActiveVibes(
+        [vibe!.label],
+        mode,
+        timer?.minutes,
+        customText || undefined,
+      );
       showAlert(
         'Vibe Set!',
         `${vibe?.emoji} ${vibe?.label} is now active for ${timer?.label}.${customText ? ` "${customText}"` : ''}`,

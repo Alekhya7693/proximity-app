@@ -99,6 +99,16 @@ export class ProfileEntity {
   @Column({ default: false })
   isPremium: boolean;
 
+  // ─── Active Vibe ────────────────────────────────────────
+  @Column({ type: 'simple-array', nullable: true })
+  vibes: string[] | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  activeVibeCustomText: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  vibeExpiresAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

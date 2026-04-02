@@ -142,6 +142,7 @@ export class DiscoveryService {
         profile,
         tier,
         onlineStatuses[nearbyUser.userId] || false,
+        userProfile,
       );
 
       candidates.push({
@@ -176,6 +177,7 @@ export class DiscoveryService {
     profile: ProfileEntity,
     tier: DiscoveryTier,
     isOnline: boolean,
+    viewerProfile?: ProfileEntity | null,
   ): number {
     let score = 0;
 
@@ -221,6 +223,30 @@ export class DiscoveryService {
     // Photos bonus
     if (profile.photos && profile.photos.length > 0) {
       score += Math.min(profile.photos.length * 3, 15);
+    }
+
+    // ─── Vibe match bonus (up to 25 points) ─────────────
+    const candidateVibesActive =
+      profile.vibes &&
+      profile.vibes.length > 0 &&
+      (!profile.vibeExpiresAt || new Date(profile.vibeExpiresAt) > new Date());
+
+    if (candidateVibesActive) {
+      // Boost users who have active vibes (they're actively looking)
+      score += 10;
+
+      // Extra bonus if viewer also has vibes and they overlap
+      if (viewerProfile?.vibes && viewerProfile.vibes.length > 0) {
+        const viewerVibeSet = new Set(
+          viewerProfile.vibes.map((v) => v.toLowerCase()),
+        );
+        const shared = profile.vibes!.filter((v) =>
+          viewerVibeSet.has(v.toLowerCase()),
+        );
+        if (shared.length > 0) {
+          score += 15; // Exact vibe match — strong signal
+        }
+      }
     }
 
     return Math.round(score * 100) / 100;
@@ -297,6 +323,12 @@ export class DiscoveryService {
 
   private sanitizeProfile(profile: ProfileEntity): Record<string, any> {
     const user = profile.user;
+    // Check if vibes are still active (not expired)
+    const vibesActive =
+      profile.vibes &&
+      profile.vibes.length > 0 &&
+      (!profile.vibeExpiresAt || new Date(profile.vibeExpiresAt) > new Date());
+
     return {
       id: profile.id,
       userId: profile.userId,
@@ -311,10 +343,74 @@ export class DiscoveryService {
       intention: profile.intention,
       photos: profile.photos,
       interests: profile.interests,
+      vibes: vibesActive ? profile.vibes : [],
+      activeVibeCustomText: vibesActive ? profile.activeVibeCustomText : null,
       occupation: profile.occupation,
       city: profile.city,
       prompts: profile.prompts,
       profileCompleteness: profile.profileCompleteness,
     };
+  }
+
+  // ─── Vibe Endpoints ────────────────────────────────────
+
+  private static readonly SOCIAL_VIBES = [
+    'Coffee Chat', 'Gaming', 'Yoga', 'Food Run', 'Study Session',
+    'Workout', 'Live Music', 'Creative', 'Drinks', 'Adventure',
+    'Chill', 'Party', 'Movie Night', 'Foodie Run',
+  ];
+
+  private static readonly PROFESSIONAL_VIBES = [
+    'Networking', 'Mentorship', 'Co-Working', 'Brainstorming',
+    'Coffee Meeting', 'Industry Chat', 'Hiring', 'Startup Talk',
+    'Skill Swap', 'Workshop',
+  ];
+
+  getAvailableVibes(mode: string): { vibes: string[] } {
+    const vibes =
+      mode === 'professional'
+        ? DiscoveryService.PROFESSIONAL_VIBES
+        : DiscoveryService.SOCIAL_VIBES;
+    return { vibes };
+  }
+
+  async setActiveVibes(
+    userId: string,
+    vibes: string[],
+    durationMinutes = 60,
+    customText?: string,
+  ): Promise<{ message: string; vibes: string[]; expiresAt: Date }> {
+    const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+
+    await this.profileRepository.update(
+      { userId },
+      {
+        vibes,
+        activeVibeCustomText: customText || null,
+        vibeExpiresAt: expiresAt,
+      },
+    );
+
+    this.logger.log(
+      `User ${userId} set vibes: [${vibes.join(', ')}] expires at ${expiresAt.toISOString()}`,
+    );
+
+    return {
+      message: 'Vibes updated',
+      vibes,
+      expiresAt,
+    };
+  }
+
+  async clearActiveVibes(userId: string): Promise<{ message: string }> {
+    await this.profileRepository.update(
+      { userId },
+      {
+        vibes: null,
+        activeVibeCustomText: null,
+        vibeExpiresAt: null,
+      },
+    );
+    return { message: 'Vibes cleared' };
   }
 }
