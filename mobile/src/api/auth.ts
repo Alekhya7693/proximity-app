@@ -85,8 +85,17 @@ export const authApi = {
   },
 
   async updateProfile(data: Partial<User>): Promise<User> {
-    const response = await apiClient.put<User>('/profile', data);
-    return response.data;
+    try {
+      const response = await apiClient.put<User>('/profile', data);
+      return response.data;
+    } catch (error: any) {
+      // If profile doesn't exist yet (new user), create it first
+      if (error?.response?.status === 404) {
+        const response = await apiClient.post<User>('/profile', data);
+        return response.data;
+      }
+      throw error;
+    }
   },
 
   async uploadProfilePhoto(formData: FormData): Promise<{ url: string }> {
