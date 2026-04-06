@@ -27,15 +27,17 @@ type Props = MainTabScreenProps<'Discover'>;
 function toCardData(p: DiscoveryProfile) {
   return {
     id: p.id,
-    displayName: p.displayName,
+    displayName: p.displayName || 'MYKO User',
     age: p.age,
-    emoji: p.profilePhotos.length > 0 ? '' : defaultEmoji(p.displayName),
+    emoji: p.profilePhotos.length > 0 ? '' : defaultEmoji(p.displayName || p.id),
     photo: p.profilePhotos[0],
     distance: p.distance,
     compatibility: p.compatibilityScore,
-    tags: p.interests.slice(0, 4),
+    tags: [...(p.vibes || []).slice(0, 2), ...(p.interests || [])].slice(0, 4),
     role: p.profession,
     company: p.company,
+    vibes: p.vibes,
+    isOnline: (p as any).isOnline,
   };
 }
 

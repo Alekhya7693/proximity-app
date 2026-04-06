@@ -12,6 +12,7 @@ export interface DiscoveryProfile {
   compatibilityScore: number;
   interests: string[];
   vibes: string[];
+  isOnline?: boolean;
   mode: AppMode;
   profession?: string;
   company?: string;
@@ -66,6 +67,7 @@ export const discoveryApi = {
       compatibilityScore: Math.min(Math.round(candidate.score), 100),
       interests: candidate.profile?.interests || [],
       vibes: candidate.profile?.vibes || [],
+      isOnline: candidate.isOnline || false,
       mode: filters.mode,
       profession: candidate.profile?.occupation || candidate.profile?.profession,
       company: candidate.profile?.company || candidate.profile?.city,

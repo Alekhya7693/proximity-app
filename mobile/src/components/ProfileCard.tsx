@@ -26,6 +26,8 @@ export interface ProfileCardData {
   tags: string[];
   role?: string;
   company?: string;
+  vibes?: string[];
+  isOnline?: boolean;
 }
 
 interface ProfileCardProps {
@@ -61,7 +63,11 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
         {/* Distance Badge - Top Left */}
         <View style={styles.distanceBadge}>
           <Text style={styles.distanceBadgeText}>
-            {profile.distance < 1 ? '<1m' : profile.distance >= 1000 ? `${(profile.distance / 1000).toFixed(1)}km` : `${Math.round(profile.distance)}m`}
+            {profile.distance < 0.1
+              ? '< 100m'
+              : profile.distance < 1
+              ? `${Math.round(profile.distance * 1000)}m`
+              : `${profile.distance.toFixed(1)}km`}
           </Text>
         </View>
 
@@ -84,10 +90,24 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
           </View>
         </View>
 
+        {/* Active Vibe Badge */}
+        {profile.vibes && profile.vibes.length > 0 && (
+          <View style={styles.vibeBadge}>
+            <Text style={styles.vibeBadgeText}>
+              ✨ {profile.vibes[0]}
+            </Text>
+          </View>
+        )}
+
+        {/* Online Indicator */}
+        {profile.isOnline && (
+          <View style={styles.onlineDot} />
+        )}
+
         {/* Bottom Info */}
         <View style={styles.cardBottom}>
           <Text style={styles.cardName}>
-            {profile.displayName}
+            {profile.displayName || 'MYKO User'}
             {isSocial && profile.age > 0 ? `, ${profile.age}` : ''}
           </Text>
           {!isSocial && profile.role && (
@@ -179,6 +199,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  vibeBadge: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 4,
+  },
+  vibeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  onlineDot: {
+    position: 'absolute',
+    top: 20,
+    left: 60,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatarEmojiContainer: {
     alignItems: 'center',

@@ -347,9 +347,8 @@ export class DiscoveryService {
     return {
       id: profile.id,
       userId: profile.userId,
-      displayName: user
-        ? user.firstName || user.username
-        : undefined,
+      displayName: profile.displayName
+        || (user ? (user.firstName ? `${user.firstName}${user.lastName ? ' ' + user.lastName[0] : ''}` : user.username) : undefined),
       age: user?.dateOfBirth
         ? this.calculateAge(user.dateOfBirth)
         : undefined,
