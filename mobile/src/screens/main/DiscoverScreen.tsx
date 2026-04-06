@@ -60,6 +60,7 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nearbyCount, setNearbyCount] = useState<number | null>(null);
+  const [locationDenied, setLocationDenied] = useState(false);
 
   // Track whether we're subscribed to real-time feed
   const wsConnected = useRef(false);
@@ -69,29 +70,34 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
   const loadFeed = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setLocationDenied(false);
     try {
-      // Update user location on the server before fetching feed
+      // Update user location on the server before fetching feed.
+      // If geolocation returns null (denied / unavailable on web), we skip the update
+      // so we don't overwrite the server's stored location with bad data.
       const loc = await locationService.getCurrentLocation();
       if (loc?.coords) {
-        try {
-          await locationApi.updateLocation({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
-          // Also push location via WebSocket for real-time discovery
-          socketService.updateLocationViaDiscovery(
-            loc.coords.latitude,
-            loc.coords.longitude,
-          );
-        } catch {
-          // Non-critical — feed may still work from cached location
+        const { latitude, longitude } = loc.coords;
+        // Guard: never send null-island (0,0) — it would break discovery
+        if (latitude !== 0 || longitude !== 0) {
+          try {
+            await locationApi.updateLocation({ latitude, longitude });
+            // Also push via WebSocket for real-time nearby notification
+            socketService.updateLocationViaDiscovery(latitude, longitude);
+          } catch {
+            // Non-critical — feed may still work from cached location
+          }
         }
+      } else {
+        // Location unavailable on this device/browser — note it but keep going.
+        // The server still has the last known location and can serve the feed.
+        setLocationDenied(true);
       }
 
       const result = await discoveryApi.getFeed(
         {
           mode,
-          maxDistance: 10000,
+          maxDistance: 50, // km — wide radius; server caps at 50km max
           ageRange: { min: 18, max: 99 },
           genderPreference: ['all'],
         },
@@ -441,6 +447,21 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Location permission banner (web only when location is denied) */}
+      {locationDenied && (
+        <View style={[styles.locationBanner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.primary + '40' }]}>
+          <Text style={styles.locationBannerEmoji}>📍</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.locationBannerTitle, { color: theme.colors.text }]}>
+              Using your last known location
+            </Text>
+            <Text style={[styles.locationBannerText, { color: theme.colors.textSecondary }]}>
+              Allow location access for real-time discovery
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Main Card Stack */}
       <View style={styles.cardContainer}>
         {isLoading ? (
@@ -734,6 +755,30 @@ const styles = StyleSheet.create({
   likeButtonText: {
     fontSize: 30,
     color: '#FFFFFF',
+  },
+
+  // Location Banner
+  locationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  locationBannerEmoji: {
+    fontSize: 18,
+  },
+  locationBannerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  locationBannerText: {
+    fontSize: 11,
+    marginTop: 1,
   },
 
   // Empty State

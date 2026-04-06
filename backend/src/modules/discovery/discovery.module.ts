@@ -8,11 +8,12 @@ import { DiscoveryGateway } from './discovery.gateway';
 import { UserEntity } from '../auth/entities/user.entity';
 import { ProfileEntity } from '../profile/entities/profile.entity';
 import { SwipeEntity } from '../match/entities/swipe.entity';
+import { BlockEntity } from '../safety/safety.service';
 import { LocationModule } from '../location/location.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, ProfileEntity, SwipeEntity]),
+    TypeOrmModule.forFeature([UserEntity, ProfileEntity, SwipeEntity, BlockEntity]),
     LocationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

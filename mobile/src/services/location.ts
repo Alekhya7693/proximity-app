@@ -52,21 +52,19 @@ export const locationService = {
   async getCurrentLocation(): Promise<any | null> {
     try {
       if (!isNative || !Location) {
-        // Web: try browser Geolocation API, fall back to approximate location
+        // Web: try browser Geolocation API, return null if unavailable
+        // IMPORTANT: never fall back to (0,0) — that would overwrite the user's
+        // real server-side location with "Null Island" and break discovery.
         return new Promise((resolve) => {
           let resolved = false;
-          const useFallback = () => {
+          const useNull = () => {
             if (resolved) return;
             resolved = true;
-            // Use a generic fallback — the actual location will be
-            // determined by the user's IP on the server side
-            const fallbackCoords = { latitude: 0, longitude: 0 };
-            console.warn('Location: Browser geolocation unavailable, using fallback');
-            useLocationStore.getState().setLocation(fallbackCoords);
-            resolve({ coords: fallbackCoords });
+            console.warn('Location: Browser geolocation unavailable or denied. Using server-stored location.');
+            resolve(null); // null = "no location update" — keep whatever is on the server
           };
-          // Timeout after 5s to avoid hanging on browser permission dialogs
-          const timer = setTimeout(useFallback, 5000);
+          // Timeout after 8s to give the permission dialog enough time
+          const timer = setTimeout(useNull, 8000);
           if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
               (position) => {
@@ -80,15 +78,16 @@ export const locationService = {
                 useLocationStore.getState().setLocation(coords);
                 resolve({ coords });
               },
-              () => {
+              (err) => {
                 clearTimeout(timer);
-                useFallback();
+                console.warn('Browser geolocation error:', err.message);
+                useNull();
               },
-              { timeout: 5000, maximumAge: 60000, enableHighAccuracy: false },
+              { timeout: 8000, maximumAge: 300000, enableHighAccuracy: false },
             );
           } else {
             clearTimeout(timer);
-            useFallback();
+            useNull();
           }
         });
       }

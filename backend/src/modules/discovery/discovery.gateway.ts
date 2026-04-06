@@ -93,11 +93,17 @@ export class DiscoveryGateway
   ): Promise<void> {
     if (!client.userId) return;
 
+    const mode = data?.mode || 'social';
+
     this.subscribers.set(client.userId, {
       socketId: client.id,
-      mode: data?.mode || 'social',
+      mode,
       lastNearbyCount: 0,
     });
+
+    // Ensure user's location is in Redis (sync from DB if not present)
+    // This is critical for users who reconnect after Redis restart or first-time connect
+    await this.locationService.syncLocationToRedis(client.userId);
 
     // Send initial nearby count immediately
     const count = await this.getQuickNearbyCount(client.userId);
@@ -120,7 +126,7 @@ export class DiscoveryGateway
     }
 
     this.logger.debug(
-      `User ${client.userId} subscribed to ${data?.mode || 'social'} feed`,
+      `User ${client.userId} subscribed to ${mode} feed`,
     );
   }
 
@@ -204,8 +210,8 @@ export class DiscoveryGateway
   // ─── Internal Broadcasting ─────────────────────────────────
 
   /**
-   * When a user's location changes, check all subscribed users
-   * that are within radius and push updated counts/feeds to them.
+   * When a user's location changes, push real-time feed updates to nearby subscribers.
+   * Sends the full updated candidate list so clients update instantly without extra API calls.
    */
   private async notifyNearbySubscribers(movedUserId: string): Promise<void> {
     // Get the moved user's position
@@ -213,41 +219,70 @@ export class DiscoveryGateway
     if (!pos) return;
 
     // For each subscribed user, check if movedUser is within their radius
+    const notifyPromises: Promise<void>[] = [];
+
     for (const [subUserId, sub] of this.subscribers.entries()) {
       if (subUserId === movedUserId) continue;
 
-      // Quick distance check using Redis
-      const dist = await this.redisGeoService.getDistanceBetween(
-        subUserId,
-        movedUserId,
+      notifyPromises.push(
+        (async () => {
+          // Quick distance check using Redis
+          const dist = await this.redisGeoService.getDistanceBetween(
+            subUserId,
+            movedUserId,
+          );
+
+          if (dist !== null && dist <= this.RADIUS_KM) {
+            // Push the full updated feed so the client refreshes immediately
+            try {
+              const feed = await this.discoveryService.getDiscoveryFeed(
+                subUserId,
+                1,
+                this.RADIUS_KM,
+              );
+              sub.lastNearbyCount = feed.total;
+              this.server.to(`user:${subUserId}`).emit('nearby_users_updated', {
+                candidates: feed.candidates,
+                total: feed.total,
+              });
+              this.server
+                .to(`user:${subUserId}`)
+                .emit('nearby_count', { count: feed.total });
+            } catch (err) {
+              this.logger.error(
+                `Failed to push feed update to ${subUserId}: ${err.message}`,
+              );
+              // Fallback: lightweight hint
+              this.server
+                .to(`user:${subUserId}`)
+                .emit('feed_changed', { reason: 'user_moved' });
+            }
+          }
+        })(),
       );
-
-      if (dist !== null && dist <= this.RADIUS_KM) {
-        // This subscriber might see the moved user — send updated count
-        const count = await this.getQuickNearbyCount(subUserId);
-        if (count !== sub.lastNearbyCount) {
-          sub.lastNearbyCount = count;
-          this.server
-            .to(`user:${subUserId}`)
-            .emit('nearby_count', { count });
-        }
-
-        // Push a lightweight notification that feed changed
-        this.server
-          .to(`user:${subUserId}`)
-          .emit('feed_changed', { reason: 'user_moved' });
-      }
     }
 
-    // Also update the moved user's own count
+    await Promise.all(notifyPromises);
+
+    // Also refresh the moved user's own count and feed
     const movedSub = this.subscribers.get(movedUserId);
     if (movedSub) {
-      const count = await this.getQuickNearbyCount(movedUserId);
-      if (count !== movedSub.lastNearbyCount) {
-        movedSub.lastNearbyCount = count;
+      try {
+        const feed = await this.discoveryService.getDiscoveryFeed(
+          movedUserId,
+          1,
+          this.RADIUS_KM,
+        );
+        movedSub.lastNearbyCount = feed.total;
+        this.server.to(`user:${movedUserId}`).emit('nearby_users_updated', {
+          candidates: feed.candidates,
+          total: feed.total,
+        });
         this.server
           .to(`user:${movedUserId}`)
-          .emit('nearby_count', { count });
+          .emit('nearby_count', { count: feed.total });
+      } catch {
+        // Non-critical
       }
     }
   }

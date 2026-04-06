@@ -45,10 +45,10 @@ export const discoveryApi = {
   ): Promise<{ profiles: DiscoveryProfile[]; hasMore: boolean }> {
     const response = await apiClient.get('/discovery/feed', {
       params: {
-        ...filters,
         page,
         limit,
-        genderPreference: filters.genderPreference.join(','),
+        radius: filters.maxDistance, // backend expects 'radius' in km
+        intention: (filters as any).intention,
       },
     });
 

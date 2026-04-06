@@ -89,10 +89,19 @@ export class ProfileService {
     const merged = { ...profile, ...data };
     merged.profileCompleteness = this.calculateCompleteness(merged);
 
-    await this.profileRepository.update(profile.id, {
+    // Wire preferences.profileVisibility → isVisible column
+    const updateData: Partial<ProfileEntity> = {
       ...data,
       profileCompleteness: merged.profileCompleteness,
-    });
+    };
+    if (data.preferences !== undefined) {
+      const prefs = { ...(profile.preferences || {}), ...data.preferences } as any;
+      if (typeof prefs.profileVisibility === 'boolean') {
+        updateData.isVisible = prefs.profileVisibility;
+      }
+    }
+
+    await this.profileRepository.update(profile.id, updateData);
 
     this.logger.log(`Profile updated for user: ${userId}`);
     return this.getProfile(userId);

@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { UserEntity, UserStatus } from '../auth/entities/user.entity';
 import { ProfileEntity, IntentionType } from '../profile/entities/profile.entity';
 import { SwipeEntity } from '../match/entities/swipe.entity';
+import { BlockEntity } from '../safety/safety.service';
 import { LocationService } from '../location/location.service';
 import { RedisGeoService, GeoMember } from '../location/redis-geo.service';
 
@@ -42,6 +43,8 @@ export class DiscoveryService {
     private readonly profileRepository: Repository<ProfileEntity>,
     @InjectRepository(SwipeEntity)
     private readonly swipeRepository: Repository<SwipeEntity>,
+    @InjectRepository(BlockEntity)
+    private readonly blockRepository: Repository<BlockEntity>,
     private readonly locationService: LocationService,
     private readonly redisGeoService: RedisGeoService,
     private readonly configService: ConfigService,
@@ -314,11 +317,23 @@ export class DiscoveryService {
 
   private async getExcludedUserIds(userId: string): Promise<string[]> {
     // Get users already swiped by this user
-    const swipes = await this.swipeRepository.find({
-      where: { swiperId: userId },
-      select: ['swipedId'],
-    });
-    return swipes.map((s) => s.swipedId);
+    const [swipes, blocks] = await Promise.all([
+      this.swipeRepository.find({
+        where: { swiperId: userId },
+        select: ['swipedId'],
+      }),
+      // Exclude anyone this user blocked OR who blocked this user (bidirectional)
+      this.blockRepository.find({
+        where: [{ blockerId: userId }, { blockedId: userId }],
+        select: ['blockerId', 'blockedId'],
+      }),
+    ]);
+
+    const ids = new Set<string>(swipes.map((s) => s.swipedId));
+    for (const block of blocks) {
+      ids.add(block.blockerId === userId ? block.blockedId : block.blockerId);
+    }
+    return [...ids];
   }
 
   private sanitizeProfile(profile: ProfileEntity): Record<string, any> {

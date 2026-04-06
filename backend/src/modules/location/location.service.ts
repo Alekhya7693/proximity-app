@@ -57,6 +57,12 @@ export class LocationService {
   ): Promise<{ updated: boolean; spoofCheck?: SpoofCheckResult }> {
     this.validateCoordinates(update.latitude, update.longitude);
 
+    // Null Island protection — (0,0) is in the ocean and always invalid for this app
+    if (update.latitude === 0 && update.longitude === 0) {
+      this.logger.warn(`Rejected null-island location update from ${userId}`);
+      return { updated: false };
+    }
+
     // Spoof detection
     let spoofCheck: SpoofCheckResult | undefined;
     if (this.spoofDetectionEnabled) {
@@ -206,6 +212,40 @@ export class LocationService {
     }
 
     return this.haversineDistance(u1.lastLatitude, u1.lastLongitude, u2.lastLatitude, u2.lastLongitude);
+  }
+
+  /**
+   * Sync a user's DB location to Redis (used on WebSocket connect to restore real-time state).
+   */
+  async syncLocationToRedis(userId: string): Promise<boolean> {
+    try {
+      // Check if already in Redis
+      const existing = await this.redisGeoService.getUserPosition(userId);
+      if (existing) return true; // Already in Redis, nothing to do
+
+      // Load from DB
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'lastLatitude', 'lastLongitude'],
+      });
+
+      if (!user?.lastLatitude || !user?.lastLongitude) return false;
+      if (user.lastLatitude === 0 && user.lastLongitude === 0) return false;
+
+      await this.redisGeoService.setUserLocation(
+        userId,
+        user.lastLongitude,
+        user.lastLatitude,
+      );
+
+      this.logger.debug(
+        `Synced DB location to Redis for ${userId}: [${user.lastLatitude}, ${user.lastLongitude}]`,
+      );
+      return true;
+    } catch (err) {
+      this.logger.error(`Failed to sync location to Redis for ${userId}`, err);
+      return false;
+    }
   }
 
   /**
