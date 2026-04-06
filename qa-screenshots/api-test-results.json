@@ -1,0 +1,248 @@
+[
+  {
+    "id": "AUTH-001",
+    "desc": "Register new user",
+    "status": "PASS",
+    "details": "Status 201"
+  },
+  {
+    "id": "AUTH-002",
+    "desc": "Login valid credentials",
+    "status": "PASS",
+    "details": "Token received"
+  },
+  {
+    "id": "AUTH-003",
+    "desc": "Login wrong password",
+    "status": "PASS",
+    "details": "Status 401"
+  },
+  {
+    "id": "AUTH-004",
+    "desc": "Login non-existent email",
+    "status": "PASS",
+    "details": "Status 401"
+  },
+  {
+    "id": "AUTH-005",
+    "desc": "Register duplicate email",
+    "status": "PASS",
+    "details": "Status 409"
+  },
+  {
+    "id": "AUTH-006",
+    "desc": "Register weak password",
+    "status": "PASS",
+    "details": "Status 400"
+  },
+  {
+    "id": "AUTH-007",
+    "desc": "Protected route without token",
+    "status": "PASS",
+    "details": "Status 401"
+  },
+  {
+    "id": "AUTH-008",
+    "desc": "Access with invalid token",
+    "status": "PASS",
+    "details": "Status 401"
+  },
+  {
+    "id": "AUTH-009",
+    "desc": "Login empty email",
+    "status": "PASS",
+    "details": "Status 400"
+  },
+  {
+    "id": "AUTH-010",
+    "desc": "SQL injection attempt",
+    "status": "PASS",
+    "details": "Status 400"
+  },
+  {
+    "id": "PROF-001",
+    "desc": "Get own profile",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "PROF-002",
+    "desc": "Update profile bio",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "PROF-003",
+    "desc": "Update interests",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "PROF-004",
+    "desc": "Profile persists updates",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "DISC-001",
+    "desc": "Get discovery feed",
+    "status": "PASS",
+    "details": "Candidates: 0"
+  },
+  {
+    "id": "DISC-002",
+    "desc": "Feed with radius filter",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "DISC-003",
+    "desc": "Feed with intention filter",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "DISC-004",
+    "desc": "Feed without auth",
+    "status": "PASS",
+    "details": "Status 401"
+  },
+  {
+    "id": "DISC-005",
+    "desc": "Get social vibes",
+    "status": "PASS",
+    "details": "Count: 14"
+  },
+  {
+    "id": "DISC-006",
+    "desc": "Get professional vibes",
+    "status": "PASS",
+    "details": "Count: 10"
+  },
+  {
+    "id": "DISC-007",
+    "desc": "Set active vibes",
+    "status": "PASS",
+    "details": "Status 201"
+  },
+  {
+    "id": "DISC-008",
+    "desc": "Clear active vibes",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "MATCH-001",
+    "desc": "Swipe like",
+    "status": "SKIP",
+    "details": "No candidates"
+  },
+  {
+    "id": "MATCH-002",
+    "desc": "Get matches list",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "MATCH-003",
+    "desc": "Double-swipe same user",
+    "status": "SKIP",
+    "details": "No target"
+  },
+  {
+    "id": "LOC-001",
+    "desc": "Update location",
+    "status": "PASS",
+    "details": "Status 201"
+  },
+  {
+    "id": "LOC-002",
+    "desc": "Get nearby users",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "LOC-003",
+    "desc": "Location without auth",
+    "status": "PASS",
+    "details": "Status 401"
+  },
+  {
+    "id": "VIBE-001",
+    "desc": "Vibe check between users",
+    "status": "SKIP",
+    "details": "No target"
+  },
+  {
+    "id": "VIBE-002",
+    "desc": "Get vibe profile",
+    "status": "PASS",
+    "details": "Energy: Creative Soul"
+  },
+  {
+    "id": "VIBE-003",
+    "desc": "Set vibes with custom text",
+    "status": "PASS",
+    "details": "Status 201"
+  },
+  {
+    "id": "SAFE-001",
+    "desc": "Report user",
+    "status": "SKIP",
+    "details": "No target"
+  },
+  {
+    "id": "SAFE-002",
+    "desc": "Block user",
+    "status": "SKIP",
+    "details": "No target"
+  },
+  {
+    "id": "EDGE-001",
+    "desc": "XSS in bio field",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "EDGE-002",
+    "desc": "Very long bio input",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "EDGE-003",
+    "desc": "Invalid UUID for swipe",
+    "status": "PASS",
+    "details": "Status 400"
+  },
+  {
+    "id": "EDGE-004",
+    "desc": "Empty body login",
+    "status": "PASS",
+    "details": "Status 400"
+  },
+  {
+    "id": "EDGE-005",
+    "desc": "Feed page 0",
+    "status": "PASS",
+    "details": "Status 200"
+  },
+  {
+    "id": "EDGE-006",
+    "desc": "Feed very high page",
+    "status": "PASS",
+    "details": "Candidates: 0"
+  },
+  {
+    "id": "EDGE-007",
+    "desc": "Invalid coordinates",
+    "status": "PASS",
+    "details": "Status 400"
+  },
+  {
+    "id": "EDGE-008",
+    "desc": "Health endpoint",
+    "status": "PASS",
+    "details": "DB: ok"
+  }
+]

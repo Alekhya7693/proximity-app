@@ -1,0 +1,308 @@
+[
+  {
+    "id": "AUTH-01",
+    "desc": "Demo login with valid credentials",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "AUTH-02",
+    "desc": "Alekhya login with valid credentials",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "AUTH-03",
+    "desc": "Login with wrong password rejected",
+    "status": "PASS",
+    "details": "HTTP 401: Invalid email or password"
+  },
+  {
+    "id": "AUTH-04",
+    "desc": "Login with empty email rejected",
+    "status": "PASS",
+    "details": "HTTP 400"
+  },
+  {
+    "id": "AUTH-05",
+    "desc": "Login with non-existent email rejected",
+    "status": "PASS",
+    "details": "HTTP 401"
+  },
+  {
+    "id": "AUTH-06",
+    "desc": "SQL injection in email blocked",
+    "status": "PASS",
+    "details": "HTTP 400"
+  },
+  {
+    "id": "AUTH-07",
+    "desc": "Register new user",
+    "status": "PASS",
+    "details": "HTTP 201"
+  },
+  {
+    "id": "AUTH-08",
+    "desc": "Duplicate email registration rejected",
+    "status": "PASS",
+    "details": "HTTP 409"
+  },
+  {
+    "id": "AUTH-09",
+    "desc": "Weak password rejected",
+    "status": "PASS",
+    "details": "HTTP 400"
+  },
+  {
+    "id": "AUTH-10",
+    "desc": "Protected route without token returns 401",
+    "status": "PASS",
+    "details": "HTTP 401"
+  },
+  {
+    "id": "AUTH-11",
+    "desc": "Invalid token returns 401",
+    "status": "PASS",
+    "details": "HTTP 401"
+  },
+  {
+    "id": "PROF-01",
+    "desc": "Demo can view own profile",
+    "status": "PASS",
+    "details": "Name: N/A"
+  },
+  {
+    "id": "PROF-02",
+    "desc": "Alekhya can view own profile",
+    "status": "PASS",
+    "details": "Name: N/A"
+  },
+  {
+    "id": "PROF-03",
+    "desc": "Demo can update bio",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "PROF-04",
+    "desc": "Demo can update interests",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "PROF-05",
+    "desc": "Updated bio persists",
+    "status": "PASS",
+    "details": "Bio: E2E test bio - Demo user 2026-04-02T20:32:24.443Z"
+  },
+  {
+    "id": "PROF-06",
+    "desc": "XSS in bio handled safely",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "PROF-07",
+    "desc": "Very long bio handled",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "LOC-01",
+    "desc": "Demo location update (Hyderabad)",
+    "status": "PASS",
+    "details": "HTTP 201"
+  },
+  {
+    "id": "LOC-02",
+    "desc": "Alekhya location update (nearby)",
+    "status": "PASS",
+    "details": "HTTP 201"
+  },
+  {
+    "id": "LOC-03",
+    "desc": "Get nearby users",
+    "status": "PASS",
+    "details": "HTTP 200, result: [{\"userId\":\"ef4e9744-d467-4add-b7d3-dccf13403060\",\"distance\":0.064,\"longitude\":7"
+  },
+  {
+    "id": "LOC-04",
+    "desc": "Location update without auth rejected",
+    "status": "PASS",
+    "details": "HTTP 401"
+  },
+  {
+    "id": "LOC-05",
+    "desc": "Invalid coordinates rejected",
+    "status": "PASS",
+    "details": "HTTP 400"
+  },
+  {
+    "id": "DISC-01",
+    "desc": "Demo discovery feed shows Alekhya",
+    "status": "PASS",
+    "details": "Candidates: 1"
+  },
+  {
+    "id": "DISC-02",
+    "desc": "Alekhya discovery feed shows Demo",
+    "status": "PASS",
+    "details": "Candidates: 1"
+  },
+  {
+    "id": "DISC-03",
+    "desc": "Very small radius filters correctly",
+    "status": "PASS",
+    "details": "Candidates: 0"
+  },
+  {
+    "id": "DISC-04",
+    "desc": "Feed without auth returns 401",
+    "status": "PASS",
+    "details": "HTTP 401"
+  },
+  {
+    "id": "DISC-05",
+    "desc": "Very high page returns empty",
+    "status": "PASS",
+    "details": "Candidates: 0"
+  },
+  {
+    "id": "VIBE-01",
+    "desc": "Get social vibe options",
+    "status": "PASS",
+    "details": "Available vibes: 14"
+  },
+  {
+    "id": "VIBE-02",
+    "desc": "Get professional vibe options",
+    "status": "PASS",
+    "details": "Available vibes: 10"
+  },
+  {
+    "id": "VIBE-03",
+    "desc": "Demo sets active vibes",
+    "status": "PASS",
+    "details": "HTTP 201"
+  },
+  {
+    "id": "VIBE-04",
+    "desc": "Alekhya sets professional vibes",
+    "status": "PASS",
+    "details": "HTTP 201"
+  },
+  {
+    "id": "VIBE-05",
+    "desc": "Vibe check Demo -> Alekhya",
+    "status": "PASS",
+    "details": "Score: 54, Level: medium"
+  },
+  {
+    "id": "VIBE-06",
+    "desc": "Get Demo vibe profile",
+    "status": "PASS",
+    "details": "Energy: Creative Soul"
+  },
+  {
+    "id": "VIBE-07",
+    "desc": "Clear active vibes",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "MATCH-01",
+    "desc": "Demo swipes LIKE on Alekhya",
+    "status": "PASS",
+    "details": "isMatch: false"
+  },
+  {
+    "id": "MATCH-02",
+    "desc": "Alekhya swipes LIKE on Demo (mutual match)",
+    "status": "PASS",
+    "details": "isMatch: true"
+  },
+  {
+    "id": "MATCH-03",
+    "desc": "Demo matches list",
+    "status": "PASS",
+    "details": "Matches: 1"
+  },
+  {
+    "id": "MATCH-04",
+    "desc": "Alekhya matches list",
+    "status": "PASS",
+    "details": "Matches: 1"
+  },
+  {
+    "id": "MATCH-05",
+    "desc": "Double-swipe same user handled",
+    "status": "PASS",
+    "details": "HTTP 409"
+  },
+  {
+    "id": "MATCH-06",
+    "desc": "Invalid UUID in swipe rejected",
+    "status": "PASS",
+    "details": "HTTP 400"
+  },
+  {
+    "id": "SAFE-01",
+    "desc": "Report user",
+    "status": "PASS",
+    "details": "HTTP 201"
+  },
+  {
+    "id": "SAFE-02",
+    "desc": "Block user",
+    "status": "FAIL",
+    "details": "HTTP 409"
+  },
+  {
+    "id": "SAFE-03",
+    "desc": "Blocked list includes blocked user",
+    "status": "PASS",
+    "details": "Blocked: 1"
+  },
+  {
+    "id": "SAFE-04",
+    "desc": "Unblock user",
+    "status": "FAIL",
+    "details": "HTTP 404"
+  },
+  {
+    "id": "EDGE-01",
+    "desc": "Empty body login rejected",
+    "status": "PASS",
+    "details": "HTTP 400"
+  },
+  {
+    "id": "EDGE-02",
+    "desc": "Page 0 handled gracefully",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "EDGE-03",
+    "desc": "Negative page handled",
+    "status": "PASS",
+    "details": "HTTP 200"
+  },
+  {
+    "id": "EDGE-04",
+    "desc": "Health endpoint healthy",
+    "status": "PASS",
+    "details": "DB: ok, Uptime: 18410"
+  },
+  {
+    "id": "CORS-01",
+    "desc": "CORS preflight",
+    "status": "FAIL",
+    "details": "Command failed: curl -s -o /dev/null -w \"%{http_code}\" -X OPTIONS https://proximity-backend-production-aee2.up.railway.app/api/v1/auth/login -H \"Origin: https://myko-web-production.up.railway.app\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: Content-Type\""
+  },
+  {
+    "id": "CORS-02",
+    "desc": "CORS Allow-Origin",
+    "status": "FAIL",
+    "details": "Command failed: curl -s -D - -o /dev/null -X OPTIONS https://proximity-backend-production-aee2.up.railway.app/api/v1/auth/login -H \"Origin: https://myko-web-production.up.railway.app\" -H \"Access-Control-Request-Method: POST\" 2>&1"
+  }
+]
