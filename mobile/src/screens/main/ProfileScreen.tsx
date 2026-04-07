@@ -79,15 +79,21 @@ const ProfileScreen: React.FC<MainTabScreenProps<'Profile'>> = ({ navigation }) 
     let mounted = true;
     (async () => {
       try {
-        const result = await matchesApi.getMatches(mode as any);
-        const totalMatches = result.matches.length;
-        const withMessages = result.matches.filter((m) => m.lastMessage).length;
+        // Fetch matches + profile (for trust score) in parallel
+        const [matchResult, profile] = await Promise.all([
+          matchesApi.getMatches(mode as any),
+          authApi.getProfile(),
+        ]);
+        const totalMatches = matchResult.matches.length;
+        const withMessages = matchResult.matches.filter((m) => m.lastMessage).length;
+        const trustScore = (profile as any)?.trustScore ?? '-';
+        const vibesCount = (user?.vibes?.length || 0);
         if (mounted) {
           setStatsData([
             { label: 'Matches', value: String(totalMatches), emoji: '\uD83D\uDC9C' },
             { label: 'Conversations', value: String(withMessages), emoji: '\uD83D\uDCAC' },
-            { label: 'Vibes Set', value: String(user?.vibes?.length || 0), emoji: '\u2728' },
-            { label: 'Trust Score', value: '85', emoji: '\uD83D\uDEE1\uFE0F' },
+            { label: 'Vibes Set', value: String(vibesCount), emoji: '\u2728' },
+            { label: 'Trust Score', value: `${trustScore}%`, emoji: '\uD83D\uDEE1\uFE0F' },
           ]);
         }
       } catch {

@@ -20,7 +20,7 @@ export class ProfileService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async getProfile(userId: string): Promise<ProfileEntity> {
+  async getProfile(userId: string): Promise<ProfileEntity & { trustScore: number }> {
     const profile = await this.profileRepository.findOne({
       where: { userId },
       relations: ['user'],
@@ -30,7 +30,43 @@ export class ProfileService {
       throw new NotFoundException('Profile not found');
     }
 
-    return profile;
+    const trustScore = this.calculateTrustScore(profile);
+    return Object.assign(profile, { trustScore });
+  }
+
+  /**
+   * Calculate a trust score (0–100) for a user profile.
+   *
+   * Components:
+   *  40pts  Profile completeness (scales linearly with profileCompleteness 0-100)
+   *  25pts  Email verified
+   *  20pts  Account age  (accrues over 30 days, capped at 20)
+   *  15pts  Onboarding complete
+   */
+  calculateTrustScore(profile: ProfileEntity): number {
+    let score = 0;
+
+    // 1. Profile completeness — max 40 pts
+    score += (profile.profileCompleteness / 100) * 40;
+
+    // 2. Email verified — 25 pts
+    if (profile.user?.emailVerified) {
+      score += 25;
+    }
+
+    // 3. Account age — max 20 pts (caps after 30 days)
+    const createdAt = profile.user?.createdAt || profile.createdAt;
+    if (createdAt) {
+      const daysOld = (Date.now() - new Date(createdAt).getTime()) / 86400000;
+      score += Math.min(daysOld / 30, 1) * 20;
+    }
+
+    // 4. Onboarding complete — 15 pts
+    if (profile.user?.isOnboardingComplete) {
+      score += 15;
+    }
+
+    return Math.min(Math.round(score), 100);
   }
 
   async getProfileById(profileId: string): Promise<ProfileEntity> {
@@ -142,7 +178,7 @@ export class ProfileService {
     }
 
     // Return public-safe fields
-    return {
+    const result: Record<string, any> = {
       id: profile.id,
       userId: profile.userId,
       displayName: profile.displayName,
@@ -158,7 +194,9 @@ export class ProfileService {
       city: profile.city,
       prompts: profile.prompts,
       profileCompleteness: profile.profileCompleteness,
+      trustScore: this.calculateTrustScore(profile),
     };
+    return result;
   }
 
   private calculateCompleteness(data: Partial<ProfileEntity>): number {

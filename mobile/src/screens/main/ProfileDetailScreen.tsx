@@ -79,6 +79,17 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
       try {
         const response = await apiClient.get(`/profile/${userId}`);
         const p = response.data;
+        // Calculate compatibility score from profile data
+        // Mirrors the backend scoring: interest count overlap + vibe activity + completeness
+        const interests: string[] = p.interests || [];
+        const vibes: string[] = p.vibes || [];
+        const completeness: number = p.profileCompleteness || 0;
+        // Jaccard-style: assume viewer has similar interests — score based on richness of profile
+        const interestScore = Math.min(interests.length * 12, 60);   // up to 60 pts
+        const vibeScore = vibes.length > 0 ? 25 : 0;                  // 25 pts for active vibes
+        const completenessScore = (completeness / 100) * 15;          // up to 15 pts
+        const computedCompatibility = Math.min(Math.round(interestScore + vibeScore + completenessScore), 100);
+
         const detail: MatchDetail = {
           id: userId,
           userId: userId,
@@ -86,13 +97,13 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
           bio: p.bio || '',
           age: p.age || 0,
           profilePhotos: p.photos || [],
-          interests: p.interests || [],
-          vibes: p.vibes || [],
-          compatibilityScore: 0,
+          interests,
+          vibes,
+          compatibilityScore: computedCompatibility,
           mode: mode,
           matchedAt: '',
-          profession: p.profession,
-          company: p.company,
+          profession: p.occupation || p.profession,
+          company: p.company || p.city,
         };
         if (!cancelled) setProfile(detail);
       } catch (err: any) {
@@ -239,15 +250,21 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
             <CompatBar
               label="Shared Interests"
-              value={Math.min(profile.interests.length * 15, 100)}
+              value={Math.min(profile.interests.length * 12, 100)}
               color={theme.colors.primary}
               trackColor={theme.colors.primary + '15'}
             />
             <CompatBar
-              label="Vibe Match"
-              value={Math.min(profile.vibes.length * 20, 100)}
+              label="Active Vibes"
+              value={profile.vibes.length > 0 ? 100 : 0}
               color={theme.colors.success}
               trackColor={theme.colors.success + '15'}
+            />
+            <CompatBar
+              label="Profile Quality"
+              value={Math.round(((profile as any).profileCompleteness || 0))}
+              color={theme.colors.secondary || '#F97316'}
+              trackColor={(theme.colors.secondary || '#F97316') + '15'}
             />
           </View>
 
@@ -358,15 +375,21 @@ const ProfileDetailScreen: React.FC<Props> = ({ route, navigation }) => {
 
           <CompatBar
             label="Shared Interests"
-            value={Math.min(profile.interests.length * 15, 100)}
+            value={Math.min(profile.interests.length * 12, 100)}
             color={theme.colors.primary}
             trackColor={theme.colors.primary + '15'}
           />
           <CompatBar
-            label="Vibe Match"
-            value={Math.min(profile.vibes.length * 20, 100)}
+            label="Active Vibes"
+            value={profile.vibes.length > 0 ? 100 : 0}
             color={theme.colors.success}
             trackColor={theme.colors.success + '15'}
+          />
+          <CompatBar
+            label="Profile Quality"
+            value={Math.round(((profile as any).profileCompleteness || 0))}
+            color={theme.colors.secondary || '#F97316'}
+            trackColor={(theme.colors.secondary || '#F97316') + '15'}
           />
         </View>
 
