@@ -263,10 +263,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
     () => navigation.navigate('Settings'),
     [navigation],
   );
-  const handleCoffeePill = useCallback(
-    () => (navigation as any).navigate('SetVibe', { preSelectedVibe: 'coffee' }),
-    [navigation],
-  );
   const handleSetVibe = useCallback(
     () => (navigation as any).navigate('SetVibe'),
     [navigation],
@@ -400,22 +396,6 @@ const DiscoverScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={styles.pillsRow}
         style={styles.pillsScroll}
       >
-        <TouchableOpacity
-          style={[
-            styles.vibePill,
-            {
-              backgroundColor: theme.colors.primary + '18',
-              borderColor: theme.colors.primary + '40',
-            },
-          ]}
-          activeOpacity={0.7}
-          onPress={handleCoffeePill}
-        >
-          <Text style={styles.vibePillEmoji}>{'\u2615'}</Text>
-          <Text style={[styles.vibePillText, { color: theme.colors.primary }]}>
-            Coffee Chat
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.actionPill,
@@ -658,22 +638,6 @@ const styles = StyleSheet.create({
     gap: 8,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  vibePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 6,
-  },
-  vibePillEmoji: {
-    fontSize: 14,
-  },
-  vibePillText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   actionPill: {
     flexDirection: 'row',
