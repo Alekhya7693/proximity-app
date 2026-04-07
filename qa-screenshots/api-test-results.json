@@ -87,7 +87,7 @@
     "id": "DISC-001",
     "desc": "Get discovery feed",
     "status": "PASS",
-    "details": "Candidates: 0"
+    "details": "Candidates: 1"
   },
   {
     "id": "DISC-002",
@@ -134,8 +134,8 @@
   {
     "id": "MATCH-001",
     "desc": "Swipe like",
-    "status": "SKIP",
-    "details": "No candidates"
+    "status": "PASS",
+    "details": "isMatch: false"
   },
   {
     "id": "MATCH-002",
@@ -146,8 +146,8 @@
   {
     "id": "MATCH-003",
     "desc": "Double-swipe same user",
-    "status": "SKIP",
-    "details": "No target"
+    "status": "PASS",
+    "details": "Status 409"
   },
   {
     "id": "LOC-001",
@@ -170,8 +170,8 @@
   {
     "id": "VIBE-001",
     "desc": "Vibe check between users",
-    "status": "SKIP",
-    "details": "No target"
+    "status": "PASS",
+    "details": "Score: 60, level: medium"
   },
   {
     "id": "VIBE-002",
@@ -188,14 +188,14 @@
   {
     "id": "SAFE-001",
     "desc": "Report user",
-    "status": "SKIP",
-    "details": "No target"
+    "status": "PASS",
+    "details": "Status 201"
   },
   {
     "id": "SAFE-002",
     "desc": "Block user",
-    "status": "SKIP",
-    "details": "No target"
+    "status": "PASS",
+    "details": "Status 409 (already blocked)"
   },
   {
     "id": "EDGE-001",
