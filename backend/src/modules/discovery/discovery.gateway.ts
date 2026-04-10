@@ -78,8 +78,10 @@ export class DiscoveryGateway
   async handleDisconnect(client: AuthenticatedSocket): Promise<void> {
     if (client.userId) {
       this.subscribers.delete(client.userId);
-      // Notify nearby users that this user went offline
+      // Notify nearby users that this user went offline and refresh their feeds
+      // so the disconnected user disappears from discovery when onlineOnly is on
       this.broadcastOnlineStatus(client.userId, false);
+      await this.refreshNearbyFeeds(client.userId);
       this.logger.log(`Discovery: user ${client.userId} disconnected`);
     }
   }
@@ -302,6 +304,39 @@ export class DiscoveryGateway
         this.server
           .to(`user:${subUserId}`)
           .emit('user_online_status', { userId, isOnline });
+      }
+    }
+  }
+
+  /**
+   * Refresh discovery feeds for all subscribers near a given user.
+   * Used when a user goes offline/online to update their appearance in others' feeds.
+   */
+  private async refreshNearbyFeeds(userId: string): Promise<void> {
+    for (const [subUserId, sub] of this.subscribers.entries()) {
+      if (subUserId === userId) continue;
+      const dist = await this.redisGeoService.getDistanceBetween(
+        subUserId,
+        userId,
+      );
+      if (dist !== null && dist <= this.RADIUS_KM) {
+        try {
+          const feed = await this.discoveryService.getDiscoveryFeed(
+            subUserId,
+            1,
+            this.RADIUS_KM,
+          );
+          sub.lastNearbyCount = feed.total;
+          this.server.to(`user:${subUserId}`).emit('nearby_users_updated', {
+            candidates: feed.candidates,
+            total: feed.total,
+          });
+          this.server
+            .to(`user:${subUserId}`)
+            .emit('nearby_count', { count: feed.total });
+        } catch {
+          // Non-critical
+        }
       }
     }
   }

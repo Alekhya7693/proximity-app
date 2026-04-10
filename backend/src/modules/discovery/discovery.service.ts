@@ -65,6 +65,7 @@ export class DiscoveryService {
     page = 1,
     radiusKm?: number,
     intention?: IntentionType,
+    onlineOnly = true,
   ): Promise<DiscoveryFeed> {
     // Get user's profile for preference matching
     const userProfile = await this.profileRepository.findOne({
@@ -75,7 +76,9 @@ export class DiscoveryService {
     const excludeIds = await this.getExcludedUserIds(userId);
     excludeIds.push(userId);
 
-    // Fetch nearby users from location service
+    // Fetch nearby users from location service.
+    // Use a wider search radius internally so we have candidates to filter,
+    // but the client-requested radius is used for display.
     const maxRadius =
       radiusKm ||
       this.configService.get<number>('DEFAULT_DISCOVERY_RADIUS_KM', 10);
@@ -110,10 +113,13 @@ export class DiscoveryService {
       profileMap.set(profile.userId, profile);
     }
 
-    // Get online statuses
+    // Get online statuses — used for both filtering and scoring
     const onlineStatuses = await this.redisGeoService.getOnlineStatuses(
       candidateUserIds,
     );
+
+    // Also check lastActiveAt as fallback for "recently active" (within 5 min)
+    const recentlyActiveThreshold = Date.now() - 5 * 60 * 1000;
 
     // Build scored candidates
     let candidates: DiscoveryCandidate[] = [];
@@ -121,6 +127,18 @@ export class DiscoveryService {
     for (const nearbyUser of filteredNearby) {
       const profile = profileMap.get(nearbyUser.userId);
       if (!profile) continue;
+
+      const isOnlineRedis = onlineStatuses[nearbyUser.userId] || false;
+      // Treat user as "active" if Redis says online OR lastActiveAt within 5 min
+      const isRecentlyActive =
+        isOnlineRedis ||
+        (profile.user?.lastActiveAt &&
+          new Date(profile.user.lastActiveAt).getTime() > recentlyActiveThreshold);
+
+      // Online filter: only show users who are currently active
+      if (onlineOnly && !isRecentlyActive) {
+        continue;
+      }
 
       // Intention filter
       if (
@@ -144,7 +162,7 @@ export class DiscoveryService {
         nearbyUser,
         profile,
         tier,
-        onlineStatuses[nearbyUser.userId] || false,
+        isOnlineRedis,
         userProfile,
       );
 
@@ -153,7 +171,7 @@ export class DiscoveryService {
         distance: Math.round((nearbyUser.distance || 0) * 10) / 10,
         score,
         profile: this.sanitizeProfile(profile),
-        isOnline: onlineStatuses[nearbyUser.userId] || false,
+        isOnline: isOnlineRedis,
       });
     }
 

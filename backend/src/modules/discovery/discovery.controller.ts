@@ -58,18 +58,28 @@ export class DiscoveryController {
     enum: IntentionType,
     description: 'Filter by intention',
   })
+  @ApiQuery({
+    name: 'onlineOnly',
+    required: false,
+    type: Boolean,
+    description: 'Only show currently active users (default: true)',
+  })
   @ApiResponse({ status: 200, description: 'Discovery feed returned' })
   async getFeed(
     @CurrentUser('id') userId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('radius') radius?: number,
     @Query('intention') intention?: IntentionType,
+    @Query('onlineOnly') onlineOnly?: string,
   ) {
+    // Default to true — only show active users unless explicitly disabled
+    const showOnlineOnly = onlineOnly !== 'false';
     return this.discoveryService.getDiscoveryFeed(
       userId,
       page,
       radius ? Number(radius) : undefined,
       intention,
+      showOnlineOnly,
     );
   }
 
