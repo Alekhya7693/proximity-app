@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
+import { useAuthStore } from '../../store/authStore';
 import type { OnboardingScreenProps } from '../../navigation/types';
 
 type Props = OnboardingScreenProps<'Basics'>;
@@ -56,8 +57,10 @@ const ProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({
 
 const BasicsScreen: React.FC<Props> = ({ navigation }) => {
   const theme = useTheme();
+  const { user, updateUser } = useAuthStore();
 
-  const [displayName, setDisplayName] = useState('');
+  // Pre-fill from existing user data if available
+  const [displayName, setDisplayName] = useState((user as any)?.displayName || user?.firstName || '');
   const [age, setAge] = useState('');
   const [bio, setBio] = useState('');
   const [nameFocused, setNameFocused] = useState(false);
@@ -65,6 +68,11 @@ const BasicsScreen: React.FC<Props> = ({ navigation }) => {
   const [bioFocused, setBioFocused] = useState(false);
 
   const handleContinue = () => {
+    // Persist the entered displayName to the auth store so AvatarSetupScreen
+    // can read it and use it as the real name (not the avatar pseudonym).
+    if (displayName.trim()) {
+      updateUser({ displayName: displayName.trim() });
+    }
     navigation.navigate('ModeSelect');
   };
 

@@ -100,7 +100,7 @@ const ProgressBar: React.FC<{ currentStep: number; totalSteps: number }> = ({
 );
 
 const AvatarSetupScreen: React.FC<Props> = ({ navigation }) => {
-  const { updateUser } = useAuthStore();
+  const { updateUser, user } = useAuthStore();
   const [selectedAvatar, setSelectedAvatar] = useState<string>('urban-fox');
 
   const currentAvatar = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)!;
@@ -110,16 +110,19 @@ const AvatarSetupScreen: React.FC<Props> = ({ navigation }) => {
   const handleStartExploring = async () => {
     setSaving(true);
     try {
-      // Save profile to backend — this also marks onboarding complete server-side
+      // Use the user's real name as displayName — NOT the avatar handle.
+      // Avatar names (UrbanFox, TidalThinker, etc.) are zone-based pseudonyms,
+      // not the user's identity.
+      const realName = (user as any)?.displayName || user?.firstName || '';
       await authApi.updateProfile({
-        displayName: currentAvatar.name,
+        ...(realName ? { displayName: realName } : {}),
         avatar: selectedAvatar,
       });
     } catch {
       // Non-critical: profile can be updated later
     }
     // Mark onboarding as complete in auth store (navigates to main app)
-    updateUser({ isOnboardingComplete: true, displayName: currentAvatar.name });
+    updateUser({ isOnboardingComplete: true });
     setSaving(false);
   };
 

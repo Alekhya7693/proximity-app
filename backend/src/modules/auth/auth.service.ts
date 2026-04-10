@@ -8,7 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { UserEntity, UserStatus } from './entities/user.entity';
@@ -43,6 +43,7 @@ export class AuthService {
     private readonly profileRepository: Repository<ProfileEntity>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly dataSource: DataSource,
   ) {
     // Seed demo user on startup (after DB sync completes)
     setTimeout(() => {
@@ -380,6 +381,51 @@ export class AuthService {
     }
   }
 
+  /**
+   * One-time idempotent fix for test data issues.
+   * Clears mutual swipes between demo and alekhya so they appear in each other's
+   * discovery feeds, and ensures Alekhya's display name is correct.
+   */
+  private async fixTestData(): Promise<void> {
+    const demoEmail = 'demo@myko.app';
+    const alekhyaEmail = 'alekhya.arnepalli@gmail.com';
+
+    const [demo, alekhya] = await Promise.all([
+      this.userRepository.findOne({ where: { email: demoEmail } }),
+      this.userRepository.findOne({ where: { email: alekhyaEmail } }),
+    ]);
+
+    if (!demo || !alekhya) return;
+
+    // Clear mutual swipes so they appear in each other's discovery feeds
+    const swipesDeleted = await this.dataSource.query(
+      `DELETE FROM swipes
+       WHERE (swiper_id = $1 AND swiped_id = $2) OR (swiper_id = $2 AND swiped_id = $1)`,
+      [demo.id, alekhya.id],
+    );
+    if (swipesDeleted[1] > 0) {
+      this.logger.log(`fixTestData: cleared ${swipesDeleted[1]} mutual swipes between demo and alekhya`);
+    }
+
+    // Clear any stale matches between them (fresh start)
+    await this.dataSource.query(
+      `DELETE FROM matches
+       WHERE (user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)`,
+      [demo.id, alekhya.id],
+    );
+
+    // Fix Alekhya's display name if it was incorrectly set to avatar name
+    await this.dataSource.query(
+      `UPDATE profiles SET display_name = 'Alekhya'
+       WHERE user_id = $1 AND (display_name = 'TidalThinker' OR display_name IS NULL OR display_name = '')`,
+      [alekhya.id],
+    );
+
+    // Ensure both demo users have isOnboardingComplete = true
+    await this.userRepository.update(demo.id, { isOnboardingComplete: true });
+    await this.userRepository.update(alekhya.id, { isOnboardingComplete: true });
+  }
+
   private async seedDemoUser(): Promise<void> {
     const email = 'demo@myko.app';
     const existing = await this.userRepository.findOne({ where: { email } });
@@ -388,6 +434,10 @@ export class AuthService {
       if (!existing.isOnboardingComplete) {
         await this.userRepository.update(existing.id, { isOnboardingComplete: true });
       }
+      // Run one-time test data fixes (idempotent)
+      await this.fixTestData().catch((e) =>
+        this.logger.warn(`fixTestData skipped: ${e.message}`),
+      );
       return;
     }
 
