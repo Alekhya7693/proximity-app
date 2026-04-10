@@ -203,6 +203,34 @@ export class MatchService {
     return match;
   }
 
+  /**
+   * Undo (delete) your most recent swipe on a user, letting them re-appear
+   * in your discovery feed. Also removes any match that resulted from it.
+   */
+  async undoSwipe(
+    swiperId: string,
+    targetUserId: string,
+  ): Promise<{ undone: boolean }> {
+    const swipe = await this.swipeRepository.findOne({
+      where: { swiperId, swipedId: targetUserId },
+    });
+    if (!swipe) {
+      return { undone: false };
+    }
+
+    // Remove any match that resulted from this swipe
+    const [u1, u2] =
+      swiperId < targetUserId
+        ? [swiperId, targetUserId]
+        : [targetUserId, swiperId];
+    await this.matchRepository.delete({ user1Id: u1, user2Id: u2 });
+
+    // Delete the swipe
+    await this.swipeRepository.delete(swipe.id);
+    this.logger.log(`Swipe undone: ${swiperId} → ${targetUserId}`);
+    return { undone: true };
+  }
+
   // ─── Private ──────────────────────────────────────────────
 
   private async createMatch(

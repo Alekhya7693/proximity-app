@@ -86,4 +86,14 @@ export class MatchController {
     await this.matchService.unmatch(userId, matchId);
     return { message: 'Unmatched successfully' };
   }
+
+  @Delete('swipe/:targetUserId')
+  @ApiOperation({ summary: 'Undo your swipe on a user (re-adds them to discovery)' })
+  @ApiResponse({ status: 200, description: 'Swipe undone' })
+  async undoSwipe(
+    @CurrentUser('id') userId: string,
+    @Param('targetUserId', ParseUUIDPipe) targetUserId: string,
+  ) {
+    return this.matchService.undoSwipe(userId, targetUserId);
+  }
 }
