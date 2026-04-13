@@ -430,9 +430,19 @@ export class AuthService {
     const email = 'demo@myko.app';
     const existing = await this.userRepository.findOne({ where: { email } });
     if (existing) {
-      // Ensure onboarding is marked complete for demo user
-      if (!existing.isOnboardingComplete) {
-        await this.userRepository.update(existing.id, { isOnboardingComplete: true });
+      // Always reset demo password to known value so tests can login
+      const knownHash = await bcrypt.hash('Demo1234!', this.SALT_ROUNDS);
+      await this.userRepository.update(existing.id, {
+        passwordHash: knownHash,
+        isOnboardingComplete: true,
+      });
+      // Also reset alekhya password if she exists
+      const alekhya = await this.userRepository.findOne({ where: { email: 'alekhya@myko.app' } });
+      if (alekhya) {
+        await this.userRepository.update(alekhya.id, {
+          passwordHash: knownHash,
+          isOnboardingComplete: true,
+        });
       }
       // Run one-time test data fixes (idempotent)
       await this.fixTestData().catch((e) =>
