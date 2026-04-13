@@ -439,7 +439,7 @@ export class AuthService {
       // Also reset alekhya password if she exists
       const alekhya = await this.userRepository
         .createQueryBuilder('user')
-        .where('LOWER(user.email) = :email', { email: 'alekhya@myko.app' })
+        .where('LOWER(user.email) = :email', { email: 'alekhya.arnepalli@gmail.com' })
         .getOne();
       if (alekhya) {
         await this.userRepository.update(alekhya.id, {
