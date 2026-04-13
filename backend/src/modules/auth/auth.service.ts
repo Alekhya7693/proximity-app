@@ -437,7 +437,10 @@ export class AuthService {
         isOnboardingComplete: true,
       });
       // Also reset alekhya password if she exists
-      const alekhya = await this.userRepository.findOne({ where: { email: 'alekhya@myko.app' } });
+      const alekhya = await this.userRepository
+        .createQueryBuilder('user')
+        .where('LOWER(user.email) = :email', { email: 'alekhya@myko.app' })
+        .getOne();
       if (alekhya) {
         await this.userRepository.update(alekhya.id, {
           passwordHash: knownHash,
