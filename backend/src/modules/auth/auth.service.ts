@@ -383,66 +383,60 @@ export class AuthService {
 
   /**
    * One-time cleanup: remove all demo/fake users and their associated data.
-   * Keeps only real user accounts (alekhya.arnepalli@gmail.com).
+   * Keeps only real user accounts.
    */
   private async cleanupDemoData(): Promise<void> {
-    // List of fake/demo emails to remove
-    const demoEmails = ['demo@myko.app'];
+    const safeDelete = async (sql: string, params: any[]) => {
+      try { await this.dataSource.query(sql, params); }
+      catch (e) { /* table may not exist, skip */ }
+    };
 
-    for (const email of demoEmails) {
-      const user = await this.userRepository.findOne({ where: { email } });
-      if (!user) continue;
+    const deleteUserCascade = async (userId: string) => {
+      // Try all possible related tables (some may not exist)
+      await safeDelete(`DELETE FROM chat_messages WHERE sender_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM chat_message WHERE sender_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM match WHERE user1_id = $1 OR user2_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM swipes WHERE swiper_id = $1 OR swiped_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM swipe WHERE swiper_id = $1 OR swiped_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM active_vibes WHERE user_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM active_vibe WHERE user_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM profiles WHERE user_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM profile WHERE user_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM session WHERE user_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM user_block WHERE blocker_id = $1 OR blocked_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM reports WHERE reporter_id = $1 OR reported_id = $1`, [userId]);
+      await safeDelete(`DELETE FROM report WHERE reporter_id = $1 OR reported_id = $1`, [userId]);
+    };
 
-      // Delete associated data in order (foreign key constraints)
-      await this.dataSource.query(`DELETE FROM chat_messages WHERE sender_id = $1`, [user.id]);
-      await this.dataSource.query(
-        `DELETE FROM chat_messages WHERE match_id IN (
-          SELECT id FROM matches WHERE user1_id = $1 OR user2_id = $1
-        )`, [user.id],
-      );
-      await this.dataSource.query(`DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1`, [user.id]);
-      await this.dataSource.query(`DELETE FROM swipes WHERE swiper_id = $1 OR swiped_id = $1`, [user.id]);
-      await this.dataSource.query(`DELETE FROM active_vibes WHERE user_id = $1`, [user.id]);
-      await this.dataSource.query(`DELETE FROM profiles WHERE user_id = $1`, [user.id]);
-      await this.dataSource.query(`DELETE FROM sessions WHERE user_id = $1`, [user.id]);
-      await this.dataSource.query(`DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1`, [user.id]);
-      await this.dataSource.query(`DELETE FROM reports WHERE reporter_id = $1 OR reported_id = $1`, [user.id]);
-      await this.userRepository.delete(user.id);
-
-      this.logger.log(`Cleaned up demo user: ${email} (${user.id})`);
+    // Remove demo@myko.app
+    const demo = await this.userRepository.findOne({ where: { email: 'demo@myko.app' } });
+    if (demo) {
+      await deleteUserCascade(demo.id);
+      await this.userRepository.delete(demo.id);
+      this.logger.log(`Cleaned up demo user: demo@myko.app (${demo.id})`);
     }
 
-    // Also clean up any fake users that aren't real (e.g. seeded Alice W, Alex Test, etc.)
-    const fakeUsers = await this.dataSource.query(
-      `SELECT u.id, u.email FROM users u
-       WHERE u.email NOT LIKE '%@gmail.com'
-       AND u.email NOT LIKE '%@yahoo.com'
-       AND u.email NOT LIKE '%@outlook.com'
-       AND u.email NOT LIKE '%@hotmail.com'
-       AND u.email LIKE '%@myko.app'
-       OR u.email LIKE '%@test.%'
-       OR u.email LIKE '%@example.%'`,
-    );
-
-    for (const fakeUser of fakeUsers) {
-      await this.dataSource.query(`DELETE FROM chat_messages WHERE sender_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(
-        `DELETE FROM chat_messages WHERE match_id IN (
-          SELECT id FROM matches WHERE user1_id = $1 OR user2_id = $1
-        )`, [fakeUser.id],
+    // Remove any other @myko.app, @test, @example fake users
+    try {
+      const fakeUsers = await this.dataSource.query(
+        `SELECT id, email FROM users
+         WHERE email LIKE '%@myko.app'
+         OR email LIKE '%@test.%'
+         OR email LIKE '%@example.%'`,
       );
-      await this.dataSource.query(`DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM swipes WHERE swiper_id = $1 OR swiped_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM active_vibes WHERE user_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM profiles WHERE user_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM sessions WHERE user_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM reports WHERE reporter_id = $1 OR reported_id = $1`, [fakeUser.id]);
-      await this.dataSource.query(`DELETE FROM users WHERE id = $1`, [fakeUser.id]);
-      this.logger.log(`Cleaned up fake user: ${fakeUser.email} (${fakeUser.id})`);
+      for (const fu of fakeUsers) {
+        await deleteUserCascade(fu.id);
+        await safeDelete(`DELETE FROM users WHERE id = $1`, [fu.id]);
+        this.logger.log(`Cleaned up fake user: ${fu.email}`);
+      }
+    } catch (e) {
+      this.logger.warn(`Fake user cleanup skipped: ${e.message}`);
     }
 
-    this.logger.log('Demo data cleanup complete. Only real accounts remain.');
+    this.logger.log('Demo data cleanup complete.');
   }
 
   private sanitizeUser(user: UserEntity): Partial<UserEntity> {
