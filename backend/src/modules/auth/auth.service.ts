@@ -45,10 +45,10 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
   ) {
-    // Seed demo user on startup (after DB sync completes)
+    // One-time cleanup: remove demo/fake users on boot, keep only real accounts
     setTimeout(() => {
-      this.seedDemoUser().catch((err) => {
-        this.logger.error(`Demo seed failed: ${err.message}`);
+      this.cleanupDemoData().catch((err) => {
+        this.logger.warn(`Demo cleanup skipped: ${err.message}`);
       });
     }, 3000);
   }
@@ -382,114 +382,67 @@ export class AuthService {
   }
 
   /**
-   * One-time idempotent fix for test data issues.
-   * Clears mutual swipes between demo and alekhya so they appear in each other's
-   * discovery feeds, and ensures Alekhya's display name is correct.
+   * One-time cleanup: remove all demo/fake users and their associated data.
+   * Keeps only real user accounts (alekhya.arnepalli@gmail.com).
    */
-  private async fixTestData(): Promise<void> {
-    const demoEmail = 'demo@myko.app';
-    const alekhyaEmail = 'alekhya.arnepalli@gmail.com';
+  private async cleanupDemoData(): Promise<void> {
+    // List of fake/demo emails to remove
+    const demoEmails = ['demo@myko.app'];
 
-    const [demo, alekhya] = await Promise.all([
-      this.userRepository.findOne({ where: { email: demoEmail } }),
-      this.userRepository.findOne({ where: { email: alekhyaEmail } }),
-    ]);
+    for (const email of demoEmails) {
+      const user = await this.userRepository.findOne({ where: { email } });
+      if (!user) continue;
 
-    if (!demo || !alekhya) return;
-
-    // Clear mutual swipes so they appear in each other's discovery feeds
-    const swipesDeleted = await this.dataSource.query(
-      `DELETE FROM swipes
-       WHERE (swiper_id = $1 AND swiped_id = $2) OR (swiper_id = $2 AND swiped_id = $1)`,
-      [demo.id, alekhya.id],
-    );
-    if (swipesDeleted[1] > 0) {
-      this.logger.log(`fixTestData: cleared ${swipesDeleted[1]} mutual swipes between demo and alekhya`);
-    }
-
-    // Clear any stale matches between them (fresh start)
-    await this.dataSource.query(
-      `DELETE FROM matches
-       WHERE (user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)`,
-      [demo.id, alekhya.id],
-    );
-
-    // Fix Alekhya's display name if it was incorrectly set to avatar name
-    await this.dataSource.query(
-      `UPDATE profiles SET display_name = 'Alekhya'
-       WHERE user_id = $1 AND (display_name = 'TidalThinker' OR display_name IS NULL OR display_name = '')`,
-      [alekhya.id],
-    );
-
-    // Ensure both demo users have isOnboardingComplete = true
-    await this.userRepository.update(demo.id, { isOnboardingComplete: true });
-    await this.userRepository.update(alekhya.id, { isOnboardingComplete: true });
-  }
-
-  private async seedDemoUser(): Promise<void> {
-    const email = 'demo@myko.app';
-    const existing = await this.userRepository.findOne({ where: { email } });
-    if (existing) {
-      // Always reset demo password to known value so tests can login
-      const knownHash = await bcrypt.hash('Demo1234!', this.SALT_ROUNDS);
-      await this.userRepository.update(existing.id, {
-        passwordHash: knownHash,
-        isOnboardingComplete: true,
-      });
-      // Also reset alekhya password if she exists
-      const alekhya = await this.userRepository
-        .createQueryBuilder('user')
-        .where('LOWER(user.email) = :email', { email: 'alekhya.arnepalli@gmail.com' })
-        .getOne();
-      if (alekhya) {
-        await this.userRepository.update(alekhya.id, {
-          passwordHash: knownHash,
-          isOnboardingComplete: true,
-        });
-      }
-      // Run one-time test data fixes (idempotent)
-      await this.fixTestData().catch((e) =>
-        this.logger.warn(`fixTestData skipped: ${e.message}`),
+      // Delete associated data in order (foreign key constraints)
+      await this.dataSource.query(`DELETE FROM chat_messages WHERE sender_id = $1`, [user.id]);
+      await this.dataSource.query(
+        `DELETE FROM chat_messages WHERE match_id IN (
+          SELECT id FROM matches WHERE user1_id = $1 OR user2_id = $1
+        )`, [user.id],
       );
-      return;
+      await this.dataSource.query(`DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1`, [user.id]);
+      await this.dataSource.query(`DELETE FROM swipes WHERE swiper_id = $1 OR swiped_id = $1`, [user.id]);
+      await this.dataSource.query(`DELETE FROM active_vibes WHERE user_id = $1`, [user.id]);
+      await this.dataSource.query(`DELETE FROM profiles WHERE user_id = $1`, [user.id]);
+      await this.dataSource.query(`DELETE FROM sessions WHERE user_id = $1`, [user.id]);
+      await this.dataSource.query(`DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1`, [user.id]);
+      await this.dataSource.query(`DELETE FROM reports WHERE reporter_id = $1 OR reported_id = $1`, [user.id]);
+      await this.userRepository.delete(user.id);
+
+      this.logger.log(`Cleaned up demo user: ${email} (${user.id})`);
     }
 
-    const passwordHash = await bcrypt.hash('Demo1234!', this.SALT_ROUNDS);
-    const user = this.userRepository.create({
-      email,
-      passwordHash,
-      username: 'demo_user',
-      firstName: 'Demo',
-      lastName: 'User',
-      dateOfBirth: new Date('1995-06-15'),
-      emailVerified: true,
-      isOnboardingComplete: true,
-      lastLatitude: 40.7128,
-      lastLongitude: -74.006,
-      lastActiveAt: new Date(),
-    });
+    // Also clean up any fake users that aren't real (e.g. seeded Alice W, Alex Test, etc.)
+    const fakeUsers = await this.dataSource.query(
+      `SELECT u.id, u.email FROM users u
+       WHERE u.email NOT LIKE '%@gmail.com'
+       AND u.email NOT LIKE '%@yahoo.com'
+       AND u.email NOT LIKE '%@outlook.com'
+       AND u.email NOT LIKE '%@hotmail.com'
+       AND u.email LIKE '%@myko.app'
+       OR u.email LIKE '%@test.%'
+       OR u.email LIKE '%@example.%'`,
+    );
 
-    const saved = await this.userRepository.save(user);
+    for (const fakeUser of fakeUsers) {
+      await this.dataSource.query(`DELETE FROM chat_messages WHERE sender_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(
+        `DELETE FROM chat_messages WHERE match_id IN (
+          SELECT id FROM matches WHERE user1_id = $1 OR user2_id = $1
+        )`, [fakeUser.id],
+      );
+      await this.dataSource.query(`DELETE FROM matches WHERE user1_id = $1 OR user2_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM swipes WHERE swiper_id = $1 OR swiped_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM active_vibes WHERE user_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM profiles WHERE user_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM sessions WHERE user_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM reports WHERE reporter_id = $1 OR reported_id = $1`, [fakeUser.id]);
+      await this.dataSource.query(`DELETE FROM users WHERE id = $1`, [fakeUser.id]);
+      this.logger.log(`Cleaned up fake user: ${fakeUser.email} (${fakeUser.id})`);
+    }
 
-    // Create demo profile
-    const profile = this.profileRepository.create({
-      userId: saved.id,
-      displayName: 'CosmicDrifter',
-      avatar: 'cosmic-drifter',
-      bio: 'Exploring the city one coffee at a time. Love tech, art, and spontaneous conversations.',
-      gender: Gender.OTHER,
-      intention: IntentionType.ALL,
-      interests: ['technology', 'coffee', 'art', 'music', 'travel'],
-      occupation: 'Software Engineer',
-      company: 'Startup Co',
-      city: 'New York',
-      photos: [],
-      isVisible: true,
-      profileCompleteness: 60,
-    });
-    await this.profileRepository.save(profile);
-
-    this.logger.log('Demo user seeded: demo@myko.app / Demo1234!');
+    this.logger.log('Demo data cleanup complete. Only real accounts remain.');
   }
 
   private sanitizeUser(user: UserEntity): Partial<UserEntity> {
