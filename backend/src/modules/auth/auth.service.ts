@@ -45,12 +45,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
   ) {
-    // One-time cleanup: remove demo/fake users on boot, keep only real accounts
-    setTimeout(() => {
-      this.cleanupDemoData().catch((err) => {
-        this.logger.warn(`Demo cleanup skipped: ${err.message}`);
-      });
-    }, 3000);
+    // No auto-seed or demo data on startup
   }
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
