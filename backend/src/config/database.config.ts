@@ -31,9 +31,12 @@ export function getDatabaseConfig(
         database: configService.get<string>('DB_DATABASE', 'myko_db'),
       };
 
-  const useSsl = databaseUrl
-    ? true
-    : configService.get<boolean>('DB_SSL', false);
+  const isLocalDb = databaseUrl
+    ? databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')
+    : true;
+  const useSsl = isLocalDb
+    ? false
+    : configService.get<boolean>('DB_SSL', true);
 
   return {
     type: 'postgres',

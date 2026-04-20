@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: myko-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: ohio
+    plan: free
+    branch: master
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: API_PREFIX
+        value: api/v1
+      - key: DATABASE_URL
+        value: postgresql://postgres:6k6U2YGsnCqR9Ee0@db.gjqotznmnxhyozhasgwd.supabase.co:5432/postgres
+      - key: DB_SYNCHRONIZE
+        value: true
+      - key: DB_LOGGING
+        value: false
+      - key: DB_SSL
+        value: true
+      - key: JWT_SECRET
+        value: myko-prod-jwt-secret-2026-secure
+      - key: JWT_ACCESS_EXPIRATION
+        value: 15m
+      - key: JWT_REFRESH_EXPIRATION
+        value: 7d
+      - key: JWT_ISSUER
+        value: myko
+      - key: MAX_DISCOVERY_RADIUS_KM
+        value: 50
+      - key: DEFAULT_DISCOVERY_RADIUS_KM
+        value: 10
+      - key: LOCATION_UPDATE_THROTTLE_MS
+        value: 30000
+      - key: LOCATION_SPOOF_DETECTION
+        value: true
+      - key: DISCOVERY_PAGE_SIZE
+        value: 20
+      - key: THROTTLE_TTL
+        value: 60
+      - key: THROTTLE_LIMIT
+        value: 60
+      - key: FF_VIBE_CHECK
+        value: true
+      - key: FF_PROFESSIONAL_MODE
+        value: true
