@@ -90,6 +90,7 @@ async function bootstrap() {
   logger.log(`MYKO API running on port ${port}`);
   logger.log(`Swagger docs available at http://localhost:${port}/docs`);
   logger.log(`Environment: ${configService.get<string>('NODE_ENV', 'development')}`);
+  logger.log(`Started at: ${new Date().toISOString()}`);
 }
 
 bootstrap();
