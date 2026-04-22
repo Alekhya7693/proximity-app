@@ -16,7 +16,7 @@ services:
       - key: API_PREFIX
         value: api/v1
       - key: DATABASE_URL
-        value: postgresql://postgres:6k6U2YGsnCqR9Ee0@db.gjqotznmnxhyozhasgwd.supabase.co:5432/postgres
+        value: postgresql://postgres.gjqotznmnxhyozhasgwd:6k6U2YGsnCqR9Ee0@aws-1-us-east-1.pooler.supabase.com:5432/postgres
       - key: DB_SYNCHRONIZE
         value: true
       - key: DB_LOGGING
