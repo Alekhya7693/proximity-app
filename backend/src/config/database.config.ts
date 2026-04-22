@@ -47,9 +47,11 @@ export function getDatabaseConfig(
     synchronize: configService.get<boolean>('DB_SYNCHRONIZE', false),
     logging: configService.get<boolean>('DB_LOGGING', false),
     autoLoadEntities: true,
+    retryAttempts: 10,
+    retryDelay: 5000,
     extra: {
-      max: 20,
-      connectionTimeoutMillis: 10000,
+      max: 10,
+      connectionTimeoutMillis: 30000,
     },
   };
 }
