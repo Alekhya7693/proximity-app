@@ -1,3 +1,7 @@
+import * as dns from 'dns';
+// Force IPv4 first — Render free tier doesn't support IPv6 outbound
+dns.setDefaultResultOrder('ipv4first');
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
