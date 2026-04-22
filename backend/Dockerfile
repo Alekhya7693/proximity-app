@@ -25,4 +25,4 @@ ENV PORT=3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/api/v1/health/live || exit 1
 
-CMD ["node", "dist/main"]
+CMD ["node", "--dns-result-order=ipv4first", "dist/main"]
